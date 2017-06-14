@@ -77,9 +77,23 @@ leaflet(points[points$traffic_den >= 5, ]) %>% addTiles() %>%
 # 
 library(clue)
 setwd("/san-data/usecase/magnet_g/misc/PCA_DATA_VIS/Yiming/Accuracy/")
-temp_all = datas1 %>% dplyr::select(longitude, latitude, trip_number, speed, stop_ind) %>% 
-  transmute(longitude = round(.$longitude, 4), latitude = round(.$latitude, 4), trip_number = trip_number, 
-            speed = speed, stop_ind = stop_ind)
+temp_all = fread("Timed_big_data.csv") %>%
+  filter(latitude > -99999 & longitude > -9999) %>%
+  dplyr::select(
+    trip_number,
+    latitude,
+    longitude,
+    stop_ind,
+    latG,
+    speed,
+    ang_speed_gyro #the change in orientation of the car in that second, measured in degrees/second,angular speed for gyroscope
+  ) %>%
+  mutate(ratio = latG * ang_speed_gyro,
+         longitude = round(.$longitude, 4),
+         latitude = round(.$latitude, 4)) %>%
+  na.omit() %>%
+  filter(abs(ratio) < 100) 
+
 
 one_trip_acc <- function(trip_number) {
   
@@ -143,6 +157,6 @@ ggplot(data.frame("Obs" = c(4495, 3199, 2206, 617, 438, 107, 1369, 288, 236),
                   "Accuracy" = c(0.9413, 0.832, 0.764, 0.705, 0.6575, 0.4872, 0.5245, 0.6982, 0.9655)), 
        aes(x = Obs, y = Accuracy)) + geom_point() + theme(panel.background = element_rect(fill = 'gray93')) + 
   geom_line(linetype = "dashed", color = "dodgerblue2", arrow = arrow(angle = 15, type = "closed")) + 
-  xlab("Number of Obs") + geom_vline(xintercept = 1369, colour = "orangered1", linetype = "twodash", size = 0.8) + 
-  annotate("text", x = 1750, y = 0.55, label = "# Obs = 1369", colour = "orangered1", size = 4.5) + 
-  annotate("text", x = 1750, y = 0.52, label = "Stable?", colour = "orangered1", size = 4.5)
+  xlab("Number of Obs") + geom_vline(xintercept = 2206, colour = "orangered1", linetype = "twodash", size = 0.8) + 
+  annotate("text", x = 1750, y = 0.79, label = "# Obs = 2206", colour = "orangered1", size = 4.5) + 
+  annotate("text", x = 1750, y = 0.76, label = "Stable?", colour = "orangered1", size = 4.5)
