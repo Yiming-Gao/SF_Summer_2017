@@ -91,13 +91,13 @@ get_coord_quali(prin_comp$x[, 1], prin_comp$x[, 2], groups = new_datas2[1: dim(p
 ######################## a function to calculate the percentage of a driver drove over speed #################
 over_speed <- function(trip_number) {
   data = temp2[temp2$trip_number == trip_number, ]
-  # cat(paste("Trip Number:", trip_number),
-  #     paste("Percentage of driving over speed limit:", round(mean(data$speed > data$speed_lim2), 4)),
-  #     sep = "\n")
+  cat(paste("Trip Number:", trip_number),
+      paste("Percentage of driving over speed limit:", round(mean(data$speed > data$speed_lim2), 4)),
+      sep = "\n")
   return(mean(data$speed > data$speed_lim2))
 }
 
-# over_speed("0441649843F94FE6ADC5E76F2FAD6CB900")
+# over_speed("0440E235DB634CBBA9CFE4D2FCC70A2400")
 # look at the overall over speed distribution 
 all_distr = setDT(data.frame(sapply(unique(temp2$trip_number), over_speed)), keep.rownames = TRUE)[]
 colnames(all_distr) = c("trip_number", "percentage")
@@ -143,6 +143,24 @@ datas3_trn = datas3[datas3_idx, ]
 datas3_tst = datas3[-datas3_idx, ]
 xyplot(PC2 ~ PC1, datas3_trn, groups = datas3$driving_type, pch = 20, auto.key = TRUE) # Visualize first 2 PCs, not linearly separable
 
+with(datas3_trn, {
+  s3d <- scatterplot3d(PC1, PC2, PC3,        # x y and z axis
+                       color = ifelse(datas3_trn$driving_type == 0, "dodgerblue2", "orangered1"), pch = c(16, 17)[as.numeric(datas3_trn$driving_type)],
+                       scale.y = 1.2, 
+                       main = "Driving Type",
+                       xlab = "PC1",
+                       ylab = "PC2",
+                       zlab = "PC3")
+  angle = 30
+  s3d.coords = s3d$xyz.convert(PC1, PC2, PC3)
+  # add the legend
+  legend("bottom", bty = "n", cex = 1, title = "Type of Drivers", c("Safe", "Dangerous"),
+         fill = c("dodgerblue2", "orangered1"), inset = -0.2, xpd = TRUE, horiz = TRUE)
+})
+
+
+
+
 # accuracy function
 svm_acc <- function(actual, predicted) {
   mean(actual == predicted)
@@ -165,8 +183,8 @@ svm_acc(actual = datas3_tst$driving_type, predicted = predict(lin_svm_fit, datas
 lin_svm_fit = svm(driving_type ~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11, data = datas3_trn,
                   kernel = 'linear', cost = lin_svm_fit$bestTune$C)
 plot(lin_svm_fit, data = datas3_trn, PC2 ~ PC1, slice = list(PC3 = 3),
-     svSymbol = 1, dataSymbol = 2, symbolPalette = topo.colors(4)[c(1, 4)],
-     color.palette = cm.colors)
+     svSymbol = 1, dataSymbol = 2, symbolPalette = topo.colors(2),
+     color.palette = terrain.colors)
 
 # Polynomial Kernel
 poly_svm_fit = train(driving_type ~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11, data = datas3_trn, 
@@ -180,11 +198,24 @@ svm_acc(actual = datas3_tst$driving_type, predicted = predict(poly_svm_fit, data
 poly_svm_fit = svm(driving_type ~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11, data = datas3_trn,
                    kernel = 'polynomial', scale = poly_svm_fit$bestTune$scale, degree = poly_svm_fit$bestTune$degree, cost = poly_svm_fit$bestTune$C)
 plot(poly_svm_fit, data = datas3_trn, PC2 ~ PC1, slice = list(PC3 = 3),
-     svSymbol = 1, dataSymbol = 2, symbolPalette = topo.colors(4)[c(1, 4)],
-     color.palette = cm.colors)
+     svSymbol = 1, dataSymbol = 2, symbolPalette = topo.colors(2),
+     color.palette = terrain.colors)
 
 
 
-
-
-
+# predict a trip
+trip_pred <- function(trip_number) {
+  test = new_datas2[new_datas2$trip_number == trip_number, -which(names(new_datas2) %in% c("trip_number", "timestmp_local", "Hour_editing_needed", "Date",
+                                                                                           "speed_lim1", "Hour", "Minute", "Second", "latitude",
+                                                                                           "longitude", "ratio", "road_type", "algorithm"))]
+  
+  test = na.omit(data.frame(predict(prin_comp, newdata = test))[, 1:11]) %>% mutate(PC1 = mean(PC1), PC2 = mean(PC2), PC3 = mean(PC3), PC4 = mean(PC4),
+                                                                                    PC5 = mean(PC5), PC6 = mean(PC6), PC7 = mean(PC7), PC8 = mean(PC8),
+                                                                                    PC9 = mean(PC9), PC10 = mean(PC10), PC11 = mean(PC11)) %>%
+    distinct(PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8, PC9, PC10, PC11)
+  
+  cat(paste("Trip Number:", trip_number),
+      paste("Prediction:", ifelse(predict(lin_svm_fit, as.data.frame("trip_number" = "17A4B1EA911641428193238381D4F36400", test)) == 0, "Safe", "Potentially dangerous")),
+      sep = "\n")
+}
+# trip_pred("18241303B71A4A24863DB05AE8EB3CBB00")
