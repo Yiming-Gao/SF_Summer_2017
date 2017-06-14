@@ -97,22 +97,22 @@ temp_all = fread("Timed_big_data.csv") %>%
 
 one_trip_acc <- function(trip_number) {
   
-  temp_data = datas1[datas1$trip_number == trip_number, ] %>% 
+  temp_data = temp_all[temp_all$trip_number == trip_number, ] %>% 
     dplyr::select(longitude, latitude, trip_number, speed, stop_ind) %>% 
     transmute(longitude = round(.$longitude, 4), latitude = round(.$latitude, 4), trip_number = trip_number, 
               speed = speed, stop_ind = stop_ind) %>% distinct(longitude, latitude) 
   # add traffic density
   temp_data = left_join(temp_data, left_join(temp_data, temp_all %>% 
                                                group_by(longitude, latitude) %>%
-                                               summarise(traffic_den = n()), by = c("longitude" = "longitude", "latitude" = "latitude")), 
+                                               dplyr::summarise(traffic_den = n()), by = c("longitude" = "longitude", "latitude" = "latitude")), 
                         by = c("longitude" = "longitude", "latitude" = "latitude"))
   # add average speed
   temp_data = left_join(temp_data, temp_all[temp_all$longitude %in% temp_data$longitude & temp_all$latitude %in% temp_data$latitude, ] %>% 
-                          group_by(longitude, latitude) %>%summarise(avg_speed = mean(speed[speed != 0])),
+                          group_by(longitude, latitude) %>% dplyr::summarise(avg_speed = mean(speed[speed != 0])),
                         by = c("longitude" = "longitude", "latitude" = "latitude"))
   # add quantile speed
   temp_data = left_join(temp_data, temp_all[temp_all$longitude %in% temp_data$longitude & temp_all$latitude %in% temp_data$latitude, ] %>% 
-                          group_by(longitude, latitude) %>% summarise(quan_speed = quantile(speed, 0.5)),
+                          group_by(longitude, latitude) %>% dplyr::summarise(quan_speed = quantile(speed, 0.5)),
                         by = c("longitude" = "longitude", "latitude" = "latitude"))
   # add predicted road type
   temp_data$road_type = ifelse(cl_predict(kmeans, temp_data[, c(3, 4)]) == 1, "Business District", 
@@ -135,28 +135,37 @@ one_trip_acc <- function(trip_number) {
   # add actual speed information
   temp_data = left_join(temp_data, actual_data[actual_data$longitude %in% temp_data$longitude & actual_data$latitude %in% temp_data$latitude, c("longitude", "latitude", "speed_cat")], 
                                      by = c("longitude" = "longitude", "latitude" = "latitude"))
-  
+  acc = round(mean(na.omit((temp_data$speed_cat == 1 & temp_data$speed_lim2 > 80) |
+                             (temp_data$speed_cat == 2 & temp_data$speed_lim2 > 65 & temp_data$speed_lim2 <= 80) |
+                             (temp_data$speed_cat == 3 & temp_data$speed_lim2 >= 55 & temp_data$speed_lim2 <= 65) |
+                             (temp_data$speed_cat == 4 & temp_data$speed_lim2 > 41 & temp_data$speed_lim2 <= 55) |
+                             (temp_data$speed_cat == 5 & temp_data$speed_lim2 > 31 & temp_data$speed_lim2 <= 41) |
+                             (temp_data$speed_cat == 6 & temp_data$speed_lim2 >= 20 & temp_data$speed_lim2 <= 31) |
+                             (temp_data$speed_cat == 7 & temp_data$speed_lim2 > 6 & temp_data$speed_lim2 <= 20) |
+                             (temp_data$speed_cat == 8 & temp_data$speed_lim2 <= 6))), 4)
   # calculate accuracy for this trip
-  cat(paste("Trip Number:", trip_number), 
-      paste("Number of valid observations:", nrow(temp_data)), 
-      paste("Prediction accuracy:", round(mean(na.omit((temp_data$speed_cat == 1 & temp_data$speed_lim2 > 80) | 
-                                                         (temp_data$speed_cat == 2 & temp_data$speed_lim2 > 65 & temp_data$speed_lim2 <= 80) |
-                                                         (temp_data$speed_cat == 3 & temp_data$speed_lim2 >= 55 & temp_data$speed_lim2 <= 65) |
-                                                         (temp_data$speed_cat == 4 & temp_data$speed_lim2 > 41 & temp_data$speed_lim2 <= 55) |
-                                                         (temp_data$speed_cat == 5 & temp_data$speed_lim2 > 31 & temp_data$speed_lim2 <= 41) |
-                                                         (temp_data$speed_cat == 6 & temp_data$speed_lim2 >= 20 & temp_data$speed_lim2 <= 31) |
-                                                         (temp_data$speed_cat == 7 & temp_data$speed_lim2 > 6 & temp_data$speed_lim2 <= 20) |
-                                                         (temp_data$speed_cat == 8 & temp_data$speed_lim2 <= 6))), 4)), sep = "\n")
+  cat(paste("Trip Number:", trip_number),
+      paste("Number of valid observations:", nrow(temp_data)),
+      paste("Prediction accuracy:", acc), sep = "\n")
+  
+  # list(obs = nrow(temp_data), accuracy = acc)
 }
 
 # one_trip_acc("11311AE898644124AF2B9630DDCC308900"), one_trip_acc("021E2989291744F1A11A6C6AF53336E000")
 # one_trip_acc("0BDFB94CCF4C4C4390972435809504DF00"), one_trip_acc("09A74154FBDD45DABA0E34996B2D022500")
 
 
-ggplot(data.frame("Obs" = c(4495, 3199, 2206, 617, 438, 107, 1369, 288, 236),
-                  "Accuracy" = c(0.9413, 0.832, 0.764, 0.705, 0.6575, 0.4872, 0.5245, 0.6982, 0.9655)), 
+ggplot(data.frame("Obs" = c(4495, 3199, 2206, 617, 438, 107, 1369, 288, 236, 308, 
+                            119, 564, 1966, 101, 1391, 412, 413, 8941, 132, 399, 
+                            72, 641, 71, 19, 3114, 707, 690, 132, 3311, 359,
+                            142, 19679),
+                  "Accuracy" = c(0.9413, 0.832, 0.764, 0.705, 0.6575, 0.4872, 0.5245, 0.6982, 0.9655, 0.7361, 
+                                 0.513, 0.7555, 0.5885, 0.5545, 0.9303, 0.3383, 0.5811, 0.8943, 0.4211, 0.7293, 
+                                 0.5833, 0.5531, 0.6053, 0.1111, 0.6329, 0.4651, 0.7083, 0.6515, 0.8855, 0.5419,
+                                 0.4727, 0.6476)), 
        aes(x = Obs, y = Accuracy)) + geom_point() + theme(panel.background = element_rect(fill = 'gray93')) + 
-  geom_line(linetype = "dashed", color = "dodgerblue2", arrow = arrow(angle = 15, type = "closed")) + 
-  xlab("Number of Obs") + geom_vline(xintercept = 2206, colour = "orangered1", linetype = "twodash", size = 0.8) + 
-  annotate("text", x = 1750, y = 0.79, label = "# Obs = 2206", colour = "orangered1", size = 4.5) + 
-  annotate("text", x = 1750, y = 0.76, label = "Stable?", colour = "orangered1", size = 4.5)
+  geom_smooth(aes(y = Accuracy), se = FALSE)  + xlab("Number of Obs") 
+# +
+#   geom_vline(xintercept = 2206, colour = "orangered1", linetype = "twodash", size = 0.8) +
+#   annotate("text", x = 1750, y = 0.79, label = "# Obs = 2206", colour = "orangered1", size = 4.5) +
+#   annotate("text", x = 1750, y = 0.76, label = "Stable?", colour = "orangered1", size = 4.5)
