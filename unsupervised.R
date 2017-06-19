@@ -113,7 +113,7 @@ ggplot(data = all_distr, aes(percentage)) +
   annotate("text", x = 0.55, y = 45, label = paste("Median (excluding zero values):", quantile(all_distr[all_distr$percentage != 0, ]$percentage, 0.5)), colour = "orangered1", size = 4)
 
 temp2 = left_join(temp2, all_distr, by = c("trip_number" = "trip_number"))
-temp2$driving_type = ifelse(temp2$percentage <= quantile(all_distr[all_distr$percentage != 0, ]$percentage, 0.5), 0, 1)
+temp2$over_speed = ifelse(temp2$percentage <= quantile(all_distr[all_distr$percentage != 0, ]$percentage, 0.5), 0, 1)
 
 
 
@@ -126,11 +126,11 @@ datas3 = (data.frame(trip_number = na.omit(new_datas2)$trip_number, prin_comp$x[
   distinct(PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8, PC9, PC10, PC11)
 
 datas3 = left_join(datas3, all_distr, by = c("trip_number" = "trip_number"))
-datas3$driving_type = as.factor(ifelse(datas3$percentage <= quantile(all_distr[all_distr$percentage != 0, ]$percentage, 0.5), 0, 1))
+datas3$over_speed = as.factor(ifelse(datas3$percentage <= quantile(all_distr[all_distr$percentage != 0, ]$percentage, 0.5), 0, 1))
 
 
 set.seed(613)
-datas3$driving_type = kmeans(datas3[, 1:11], centers = 2, iter.max = 20, nstart = 20)$cluster
+datas3$over_speed = kmeans(datas3[, 1:11], centers = 2, iter.max = 20, nstart = 20)$cluster
 
 # type = 1, speed_plot_line("0441649843F94FE6ADC5E76F2FAD6CB900"), potential dangerous driver 
 
@@ -139,24 +139,24 @@ datas3$driving_type = kmeans(datas3[, 1:11], centers = 2, iter.max = 20, nstart 
 library(kernlab)
 library(gridExtra)
 set.seed(612)
-datas3_idx = createDataPartition(datas3$driving_type, p = 0.75, list = FALSE)
+datas3_idx = createDataPartition(datas3$over_speed, p = 0.75, list = FALSE)
 datas3_trn = datas3[datas3_idx, ]
 datas3_tst = datas3[-datas3_idx, ]
 
-p1 = ggplot(datas3_trn, aes(PC1, PC2, color = driving_type))+ geom_point(size = 0.8) + 
+p1 = ggplot(datas3_trn, aes(PC1, PC2, color = over_speed))+ geom_point(size = 0.8) + 
   scale_colour_manual(values = c("dodgerblue2", 'orangered1')) + theme(legend.position = "left")
-p2 = ggplot(datas3_trn, aes(PC2, PC3, color = driving_type))+ geom_point(size = 0.8) + 
+p2 = ggplot(datas3_trn, aes(PC2, PC3, color = over_speed))+ geom_point(size = 0.8) + 
   scale_colour_manual(values = c("dodgerblue2", 'orangered1')) + theme(legend.position = "left")
-p3 = ggplot(datas3_trn, aes(PC1, PC3, color = driving_type))+ geom_point(size = 0.8) + 
+p3 = ggplot(datas3_trn, aes(PC1, PC3, color = over_speed))+ geom_point(size = 0.8) + 
   scale_colour_manual(values = c("dodgerblue2", 'orangered1')) + theme(legend.position = "left")
-p4 = ggplot(datas3_trn, aes(PC1, PC4, color = driving_type))+ geom_point(size = 0.8) + 
+p4 = ggplot(datas3_trn, aes(PC1, PC4, color = over_speed))+ geom_point(size = 0.8) + 
   scale_colour_manual(values = c("dodgerblue2", 'orangered1')) + theme(legend.position = "left")
 grid.arrange(p1, p2, p3, p4, ncol = 2)
 
 # very ugly 3d plot
 with(datas3_trn, {
   s3d <- scatterplot3d(PC1, PC2, PC3,        # x y and z axis
-                       color = ifelse(datas3_trn$driving_type == 0, "dodgerblue2", "orangered1"), pch = c(16, 17)[as.numeric(datas3_trn$driving_type)],
+                       color = ifelse(datas3_trn$over_speed == 0, "dodgerblue2", "orangered1"), pch = c(16, 17)[as.numeric(datas3_trn$over_speed)],
                        scale.y = 1.2, 
                        main = "Driving Type",
                        xlab = "PC1",
@@ -181,37 +181,34 @@ svm_grid =  expand.grid(C = c(2 ^ (-5:5)))
 svm_control = trainControl(method = "cv", number = 5, 
                            returnResamp = "all", verbose = FALSE)
 
-lin_svm_fit = train(driving_type ~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11, data = datas3_trn, 
+lin_svm_fit = train(over_speed ~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11, data = datas3_trn, 
                     method = "svmLinear",
                     trControl = svm_control, tuneGrid = svm_grid)
 
 # train and test accuracy
-svm_acc(actual = datas3_trn$driving_type, predicted = predict(lin_svm_fit, datas3_trn))
-svm_acc(actual = datas3_tst$driving_type, predicted = predict(lin_svm_fit, datas3_tst))
+svm_acc(actual = datas3_trn$over_speed, predicted = predict(lin_svm_fit, datas3_trn))
+svm_acc(actual = datas3_tst$over_speed, predicted = predict(lin_svm_fit, datas3_tst))
 
-lin_svm_fit = svm(driving_type ~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11, data = datas3_trn,
+lin_svm_fit = svm(over_speed ~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11, data = datas3_trn,
                   kernel = 'linear', cost = lin_svm_fit$bestTune$C)
 plot(lin_svm_fit, data = datas3_trn, PC2 ~ PC1, slice = list(PC3 = 3),
      svSymbol = 1, dataSymbol = 2, symbolPalette = topo.colors(2),
      color.palette = terrain.colors)
 
 # Polynomial Kernel
-poly_svm_fit = train(driving_type ~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11, data = datas3_trn, 
+poly_svm_fit = train(over_speed ~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11, data = datas3_trn, 
                      method = "svmPoly",
                      trControl = svm_control)
 
 # train and test accuracy
-svm_acc(actual = datas3_trn$driving_type, predicted = predict(poly_svm_fit, datas3_trn))
-svm_acc(actual = datas3_tst$driving_type, predicted = predict(poly_svm_fit, datas3_tst))
+svm_acc(actual = datas3_trn$over_speed, predicted = predict(poly_svm_fit, datas3_trn))
+svm_acc(actual = datas3_tst$over_speed, predicted = predict(poly_svm_fit, datas3_tst))
 
-poly_svm_fit = svm(driving_type ~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11, data = datas3_trn,
+poly_svm_fit = svm(over_speed ~ PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 + PC11, data = datas3_trn,
                    kernel = 'polynomial', scale = poly_svm_fit$bestTune$scale, degree = poly_svm_fit$bestTune$degree, cost = poly_svm_fit$bestTune$C)
 plot(poly_svm_fit, data = datas3_trn, PC2 ~ PC1, slice = list(PC3 = 3),
               svSymbol = 1, dataSymbol = 2, symbolPalette = topo.colors(2),
               color.palette = terrain.colors)
-
-
-
 
 
 # predict a trip
@@ -227,18 +224,38 @@ trip_pred <- function(trip_number) {
   
   cat(paste("Trip Number:", trip_number),
       paste("Over speed proportion:", round(over_speed(trip_number), 4)),
-      paste("Prediction:", ifelse(predict(lin_svm_fit, as.data.frame("trip_number" = "17A4B1EA911641428193238381D4F36400", test)) == 0, "Safe", "Potentially dangerous")),
+      paste("Prediction:", ifelse(predict(lin_svm_fit, as.data.frame("trip_number" = "17A4B1EA911641428193238381D4F36400", test)) == 0, "Normal driving", "Overspeed")),
       sep = "\n")
 }
 # trip_pred("18241303B71A4A24863DB05AE8EB3CBB00")
 
 
+################################### SOM ################################
+library(kohonen)
+# https://www.slideshare.net/shanelynn/2014-0117-dublin-r-selforganising-maps-for-customer-segmentation-shane-lynn
+data_som = na.omit(new_datas2[, which(names(new_datas2) %in% 
+                                        c("Time", "latG", "lonG", "speed", "ang_speed_gyro", "lon_delta",
+                                          "inc_mileage", "lag_speed"))])[seq(1, 100001, length.out = 2000), ]
+data_som_matrix = as.matrix(scale(data_som))
+som_grid = somgrid(xdim = 20, ydim = 20, topo = "hexagonal")
+som_model = som(data_som_matrix, grid = som_grid, rlen = 100, alpha = c(0.05, 0.01), keep.data = TRUE)
+coolBlueHotRed <- function(n, alpha = 1) { rainbow(n, end = 4/6, alpha = alpha)[n:1] }
+pretty_palette <- c("#1f77b4", '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2')
+plot(som_model, type = "changes")
+plot(som_model, type = "count", palette.name = coolBlueHotRed)
+plot(som_model, type = "dist.neighbours", palette.name = coolBlueHotRed)
+plot(som_model, type = "codes")
+plot(som_model, type = "property", property = som_model$codes[[1]][, 4], main = "speed", palette.name = coolBlueHotRed)
+# unscaled plot
+var_unscaled = aggregate(as.numeric(data_som[ ,4]), by=list(som_model$unit.classif), FUN=mean, simplify=TRUE)$x
+plot(som_model, type = "property", property=var_unscaled, main="speed", palette.name=coolBlueHotRed)
 
 
-
-
-
-
+## use hierarchical clustering to cluster
+som_cluster <- cutree(hclust(dist(som_model$codes[[1]])), 3)
+# plot these results:
+plot(som_model, type = "mapping", bgcol = pretty_palette[som_cluster], main = "Clusters") 
+add.cluster.boundaries(som_model, som_cluster)
 
 
 
