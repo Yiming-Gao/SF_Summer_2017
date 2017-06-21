@@ -63,13 +63,23 @@ mean((temp2 %>% group_by(trip_number) %>% summarise(count = n()))$count)
 # 394 obs in temp2 on average
 
 
-factpal = colorFactor(colors()[c(257, 91, 507 , 452, 129)], points[points$traffic_den >= 5, ]$speed_lim2)
+# most frequent value
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+points$speed_lim3 = (points %>% mutate(longitude = round(longitude, 3), latitude = round(latitude, 3)) %>% 
+  group_by(longitude, latitude) %>%
+  mutate(speed_lim3 = Mode(speed_lim2)))$speed_lim3
+
+factpal = colorFactor(colors()[c(257, 91, 507 , 452, 129)], points[points$traffic_den >= 4, ]$speed_lim3)
 # factpal = colorFactor(topo.colors(3), points[points$traffic_den >= 5, ]$road_type)
 
-leaflet(points[points$traffic_den >= 5, ]) %>% addTiles() %>%
-  addCircles(lng = ~points[points$traffic_den >= 5, ]$longitude, lat = ~points[points$traffic_den >= 5, ]$latitude, weight = 1,  color = ~factpal(speed_lim2),
-             radius = ~points[points$traffic_den >= 5, ]$speed_lim2 * 2, fillOpacity = 1, group = "Speed Limit") %>%
-  addLegend("bottomright", pal = factpal, values = points[points$traffic_den >= 5, ]$speed_lim2, title = "Speed Limit", opacity = 1)
+leaflet(points[points$traffic_den >= 4, ]) %>% addTiles() %>%
+  addCircles(lng = ~points[points$traffic_den >= 4, ]$longitude, lat = ~points[points$traffic_den >= 4, ]$latitude, weight = 1,  color = ~factpal(speed_lim3),
+             radius = ~sqrt(points[points$traffic_den >= 4, ]$speed_lim3) * 10, fillOpacity = 1) %>%
+  addLegend("bottomright", pal = factpal, values = points[points$traffic_den >= 4, ]$speed_lim3, title = "Speed Limit", opacity = 1)
 # This plot is very similar to actual speed limit plot
 
 
@@ -316,9 +326,14 @@ ggplot(acc_df_3_decimals[acc_df_3_decimals$acc != 0, ], aes(x = traffic_den, y =
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 # plot part of points
-ggplot(acc_df_3_decimals[acc_df_3_decimals$traffic_den <= 200 & acc_df_3_decimals$acc != 0, ], aes(x = traffic_den, y = acc)) + geom_point() + 
-  theme(panel.background = element_rect(fill = 'gray93'), axis.text.x = element_text(angle = 45, hjust = 1)) + 
-  geom_smooth(aes(y = acc), colour = "dodgerblue2", span = 0.4, se = FALSE) + # span controls wiggliness
-  scale_x_continuous(name = "Number of Cars", breaks = seq(0, 200, 10)) + 
-  scale_y_continuous(name = "Accuracy", breaks = seq(0, 1, 0.1), limits = c(0, 1)) + 
+ggplot(acc_df_3_decimals[acc_df_3_decimals$traffic_den <= 250 & acc_df_3_decimals$acc != 0, ], aes(x = acc_df_3_decimals[acc_df_3_decimals$traffic_den <= 250 & acc_df_3_decimals$acc != 0, ]$traffic_den)) + 
+  scale_x_continuous(name = "Number of Cars", breaks = seq(0, 250, 10)) + 
+  scale_y_continuous(name = "Accuracy", breaks = seq(0, 1, 0.1), limits = c(0, 1), sec.axis = sec_axis(~.*1500, name = "Number of points with this traffic density")) + 
+  geom_point(aes(y = acc_df_3_decimals[acc_df_3_decimals$traffic_den <= 250 & acc_df_3_decimals$acc != 0, ]$acc, colour = "Accuracy")) + 
+  geom_point(aes(y = acc_df_3_decimals[acc_df_3_decimals$traffic_den <= 250 & acc_df_3_decimals$acc != 0, ]$n / 1500, colour = "Number of points with this traffic density")) + 
+  theme(panel.background = element_rect(fill = 'gray93'), 
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = c(0.8, 0.2)) + 
+  geom_smooth(aes(y = acc, colour = "Accuracy"), span = 0.4, se = FALSE) + # span controls wiggliness
+  geom_smooth(aes(y = n / 1500, colour = "Number of points with this traffic density"), span = 0.4, se = FALSE) + 
   labs(title = "Accuracy vs # of Cars (3 decimals)")
