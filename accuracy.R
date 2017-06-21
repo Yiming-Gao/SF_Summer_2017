@@ -23,7 +23,7 @@ leaflet(plot_data) %>% addTiles() %>%
 ##################################### sample size  ###########################
 # set some intolerance
 accuracy = function(actual, predicted) {
-  mean((predicted <= actual + 5) & (predicted >=  actual - 5))
+  (predicted <= actual + 5) & (predicted >=  actual - 5)
 }
 
 ## sample 1: traffic density >= 15
@@ -190,7 +190,9 @@ ggplot(data.frame("Obs" = obs[which(obs > 500)],
 
 ################################### at a location level ##############################
 # actual_data contains 60 trips' information
-temp_data = temp_all[temp_all$trip_number %in% actual_data$, ] %>% 
+# could compare 3 vs 4 decimals
+
+temp_data = temp_all[temp_all$trip_number %in% actual_data$trip_number, ] %>% 
   dplyr::select(longitude, latitude, trip_number, speed, stop_ind) %>% 
   transmute(longitude = round(.$longitude, 4), latitude = round(.$latitude, 4), trip_number = trip_number, 
             speed = speed, stop_ind = stop_ind) %>% distinct(longitude, latitude) 
@@ -220,3 +222,103 @@ temp_data$speed_lim2 = ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed 
                               ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed * 0.5 <= (35 + 55) / 2, 35, 
                                      ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed * 0.5 <= (55 + 65) / 2, 55,
                                             ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed * 0.5 <= (65 + 70) / 2, 65, 70))))
+
+# add actual speed information
+temp_data = left_join(temp_data, actual_data[actual_data$longitude %in% temp_data$longitude & actual_data$latitude %in% temp_data$latitude, c("longitude", "latitude", "speed_cat")], 
+                      by = c("longitude" = "longitude", "latitude" = "latitude"))
+
+# add comparison
+temp_data$comp = (temp_data$speed_cat == 1 & temp_data$speed_lim2 > 80) |
+  (temp_data$speed_cat == 2 & temp_data$speed_lim2 >= 60 & temp_data$speed_lim2 <= 80) |
+  (temp_data$speed_cat == 3 & temp_data$speed_lim2 >= 50 & temp_data$speed_lim2 <= 65) |
+  (temp_data$speed_cat == 4 & temp_data$speed_lim2 >= 35 & temp_data$speed_lim2 <= 55) |
+  (temp_data$speed_cat == 5 & temp_data$speed_lim2 >= 25 & temp_data$speed_lim2 <= 40) |
+  (temp_data$speed_cat == 6 & temp_data$speed_lim2 >= 15 & temp_data$speed_lim2 <= 30) |
+  (temp_data$speed_cat == 7 & temp_data$speed_lim2 >= 5 & temp_data$speed_lim2 <= 20) |
+  (temp_data$speed_cat == 8 & temp_data$speed_lim2 <= 6)
+
+acc_df = na.omit(temp_data %>% 
+                   group_by(traffic_den) %>% dplyr::summarise(acc = mean(na.omit(comp)), n = n())) %>%
+  filter(.$n >= 10)
+
+
+ggplot(acc_df[acc_df$acc != 0, ], aes(x = traffic_den, y = acc)) + geom_point() + theme(panel.background = element_rect(fill = 'gray93')) + 
+  geom_smooth(aes(y = acc), colour = "dodgerblue2", span = 0.4, se = FALSE) + # span controls wiggliness
+  scale_x_continuous(name = "Number of Cars", breaks = seq(1, 44, 2)) + 
+  scale_y_continuous(name = "Accuracy", breaks = seq(0, 1, 0.1), limits = c(0, 1)) + 
+  labs(title = "Accuracy vs # of Cars (4 decimals)")
+
+
+### Comparison with 3 decimals
+actual_data_3_decimals = actual_data %>% mutate(longitude = round(.$longitude, 3), latitude = round(.$latitude, 3))
+
+
+temp_data = temp_all[temp_all$trip_number %in% unique(actual_data_3_decimals$trip_number), ] %>% 
+  dplyr::select(longitude, latitude, trip_number, speed, stop_ind) %>% 
+  transmute(longitude = round(.$longitude, 3), latitude = round(.$latitude, 3), trip_number = trip_number, 
+            speed = speed, stop_ind = stop_ind) %>% distinct(longitude, latitude) 
+
+# add traffic density
+temp_data = left_join(temp_data, left_join(temp_data, temp_all %>% 
+                                             mutate(longitude = round(.$longitude, 3), latitude = round(.$latitude, 3)) %>% 
+                                             group_by(longitude, latitude) %>%
+                                             dplyr::summarise(traffic_den = n()), by = c("longitude" = "longitude", "latitude" = "latitude")), 
+                      by = c("longitude" = "longitude", "latitude" = "latitude"))
+
+# add average speed
+temp_data = left_join(temp_data, temp_all[temp_all$longitude %in% temp_data$longitude & temp_all$latitude %in% temp_data$latitude, ] %>% 
+                        mutate(longitude = round(.$longitude, 3), latitude = round(.$latitude, 3)) %>% 
+                        group_by(longitude, latitude) %>% dplyr::summarise(avg_speed = mean(na.omit(speed[speed != 0]))),
+                      by = c("longitude" = "longitude", "latitude" = "latitude"))
+# add quantile speed
+temp_data = left_join(temp_data, temp_all[temp_all$longitude %in% temp_data$longitude & temp_all$latitude %in% temp_data$latitude, ] %>% 
+                        mutate(longitude = round(.$longitude, 3), latitude = round(.$latitude, 3)) %>% 
+                        group_by(longitude, latitude) %>% dplyr::summarise(quan_speed = quantile(speed, 0.5)),
+                      by = c("longitude" = "longitude", "latitude" = "latitude"))
+
+# add predicted road type
+temp_data$road_type = ifelse(cl_predict(kmeans, temp_data[, c("traffic_den", "avg_speed")]) == 1, "Business District", 
+                             ifelse(cl_predict(kmeans, temp_data[, c("traffic_den", "avg_speed")]) == 2, "Residential Road", "Freeway"))
+
+# add speed limit 1
+temp_data$speed_lim1 = ifelse(temp_data$road_type == "Freeway", 70, ifelse(temp_data$road_type == "Business District", 45, 30))
+
+# add speed limit 2
+temp_data$speed_lim2 = ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed * 0.5 <= (20 + 35) / 2, 20,
+                              ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed * 0.5 <= (35 + 55) / 2, 35, 
+                                     ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed * 0.5 <= (55 + 65) / 2, 55,
+                                            ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed * 0.5 <= (65 + 70) / 2, 65, 70))))
+
+# add actual speed information
+temp_data = left_join(temp_data, actual_data[actual_data_3_decimals$longitude %in% temp_data$longitude & actual_data_3_decimals$latitude %in% temp_data$latitude, c("longitude", "latitude", "speed_cat")], 
+                      by = c("longitude" = "longitude", "latitude" = "latitude"))
+
+# add comparison
+temp_data$comp = (temp_data$speed_cat == 1 & temp_data$speed_lim2 > 80) |
+  (temp_data$speed_cat == 2 & temp_data$speed_lim2 >= 60 & temp_data$speed_lim2 <= 80) |
+  (temp_data$speed_cat == 3 & temp_data$speed_lim2 >= 50 & temp_data$speed_lim2 <= 65) |
+  (temp_data$speed_cat == 4 & temp_data$speed_lim2 >= 35 & temp_data$speed_lim2 <= 55) |
+  (temp_data$speed_cat == 5 & temp_data$speed_lim2 >= 25 & temp_data$speed_lim2 <= 40) |
+  (temp_data$speed_cat == 6 & temp_data$speed_lim2 >= 15 & temp_data$speed_lim2 <= 30) |
+  (temp_data$speed_cat == 7 & temp_data$speed_lim2 >= 5 & temp_data$speed_lim2 <= 20) |
+  (temp_data$speed_cat == 8 & temp_data$speed_lim2 <= 6)
+
+acc_df_3_decimals = na.omit(temp_data %>% 
+                              group_by(traffic_den) %>% dplyr::summarise(acc = mean(na.omit(comp)), n = n())) %>%
+  filter(.$n >= 10)
+
+
+ggplot(acc_df_3_decimals[acc_df_3_decimals$acc != 0, ], aes(x = traffic_den, y = acc)) + geom_point() + theme(panel.background = element_rect(fill = 'gray93')) + 
+  geom_smooth(aes(y = acc), colour = "dodgerblue2", span = 0.4, se = FALSE) + # span controls wiggliness
+  scale_x_continuous(name = "Number of Cars", breaks = seq(0, 330, 10)) + 
+  scale_y_continuous(name = "Accuracy", breaks = seq(0, 1, 0.1), limits = c(0, 1)) + 
+  labs(title = "Accuracy vs # of Cars (3 decimals)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# plot part of points
+ggplot(acc_df_3_decimals[acc_df_3_decimals$traffic_den <= 200 & acc_df_3_decimals$acc != 0, ], aes(x = traffic_den, y = acc)) + geom_point() + 
+  theme(panel.background = element_rect(fill = 'gray93'), axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  geom_smooth(aes(y = acc), colour = "dodgerblue2", span = 0.4, se = FALSE) + # span controls wiggliness
+  scale_x_continuous(name = "Number of Cars", breaks = seq(0, 200, 10)) + 
+  scale_y_continuous(name = "Accuracy", breaks = seq(0, 1, 0.1), limits = c(0, 1)) + 
+  labs(title = "Accuracy vs # of Cars (3 decimals)")
