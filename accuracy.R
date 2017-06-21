@@ -179,8 +179,44 @@ ggplot(data.frame("Obs" = obs, "Accuracy" = acc),
 ggplot(data.frame("Obs" = obs[which(obs > 500)],
                   "Accuracy" = acc[which(obs > 500)]), 
        aes(x = Obs, y = Accuracy)) + geom_point() + theme(panel.background = element_rect(fill = 'gray93')) + 
-  geom_smooth(aes(y = Accuracy), colour = "dodgerblue2", span = 0.5, se = FALSE) + # span controls wiggliness
+  geom_smooth(aes(y = Accuracy), colour = "dodgerblue2", span = 0.45, se = FALSE) + # span controls wiggliness
   scale_x_continuous(name = "Number of Obs", breaks = seq(0, 20000, 2000)) + 
   scale_y_continuous(name = "Accuracy", breaks = seq(0, 1, 0.1)) + 
   geom_vline(xintercept = 2000, colour = "orangered1", linetype = "twodash", size = 0.7) +
+  geom_hline(yintercept = 0.7, colour = "#009E73", linetype = "dashed", size = 0.7) +
   annotate("text", x = 1000, y = 0.85, label = "Stable?", colour = "orangered1", size = 4.5)
+
+
+
+################################### at a location level ##############################
+# actual_data contains 60 trips' information
+temp_data = temp_all[temp_all$trip_number %in% actual_data$, ] %>% 
+  dplyr::select(longitude, latitude, trip_number, speed, stop_ind) %>% 
+  transmute(longitude = round(.$longitude, 4), latitude = round(.$latitude, 4), trip_number = trip_number, 
+            speed = speed, stop_ind = stop_ind) %>% distinct(longitude, latitude) 
+
+# add traffic density
+temp_data = left_join(temp_data, left_join(temp_data, temp_all %>% 
+                                             group_by(longitude, latitude) %>%
+                                             dplyr::summarise(traffic_den = n()), by = c("longitude" = "longitude", "latitude" = "latitude")), 
+                      by = c("longitude" = "longitude", "latitude" = "latitude"))
+# add average speed
+temp_data = left_join(temp_data, temp_all[temp_all$longitude %in% temp_data$longitude & temp_all$latitude %in% temp_data$latitude, ] %>% 
+                        group_by(longitude, latitude) %>% dplyr::summarise(avg_speed = mean(speed[speed != 0])),
+                      by = c("longitude" = "longitude", "latitude" = "latitude"))
+# add quantile speed
+temp_data = left_join(temp_data, temp_all[temp_all$longitude %in% temp_data$longitude & temp_all$latitude %in% temp_data$latitude, ] %>% 
+                        group_by(longitude, latitude) %>% dplyr::summarise(quan_speed = quantile(speed, 0.5)),
+                      by = c("longitude" = "longitude", "latitude" = "latitude"))
+# add predicted road type
+temp_data$road_type = ifelse(cl_predict(kmeans, temp_data[, c(3, 4)]) == 1, "Business District", 
+                             ifelse(cl_predict(kmeans, temp_data[, c(3, 4)]) == 2, "Residential Road", "Freeway"))
+
+# add speed limit 1
+temp_data$speed_lim1 = ifelse(temp_data$road_type == "Freeway", 70, ifelse(temp_data$road_type == "Business District", 45, 30))
+
+# add speed limit 2
+temp_data$speed_lim2 = ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed * 0.5 <= (20 + 35) / 2, 20,
+                              ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed * 0.5 <= (35 + 55) / 2, 35, 
+                                     ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed * 0.5 <= (55 + 65) / 2, 55,
+                                            ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed * 0.5 <= (65 + 70) / 2, 65, 70))))
