@@ -69,9 +69,12 @@ Mode <- function(x) {
   ux[which.max(tabulate(match(x, ux)))]
 }
 
-points$speed_lim3 = (points %>% mutate(longitude = round(longitude, 3), latitude = round(latitude, 3)) %>% 
+points$speed_lim3 = (points %>% mutate(longitude = round(longitude, 3), latitude = round(latitude, 3)) %>%
   group_by(longitude, latitude) %>%
   mutate(speed_lim3 = Mode(speed_lim2)))$speed_lim3
+
+points$speed_lim3 = c(rollapply(points$speed_lim2, width = 200, Mode, fill = NA))
+points = na.omit(points)
 
 factpal = colorFactor(colors()[c(257, 91, 507 , 452, 129)], points[points$traffic_den >= 4, ]$speed_lim3)
 # factpal = colorFactor(topo.colors(3), points[points$traffic_den >= 5, ]$road_type)
@@ -205,7 +208,7 @@ ggplot(data.frame("Obs" = obs[which(obs > 500)],
 temp_data = temp_all[temp_all$trip_number %in% actual_data$trip_number, ] %>% 
   dplyr::select(longitude, latitude, trip_number, speed, stop_ind) %>% 
   transmute(longitude = round(.$longitude, 4), latitude = round(.$latitude, 4), trip_number = trip_number, 
-            speed = speed, stop_ind = stop_ind) %>% distinct(longitude, latitude) 
+            speed = speed, stop_ind = stop_ind) %>% distinct(trip_number, longitude, latitude) 
 
 # add traffic density
 temp_data = left_join(temp_data, left_join(temp_data, temp_all %>% 
@@ -266,7 +269,7 @@ actual_data_3_decimals = actual_data %>% mutate(longitude = round(.$longitude, 3
 temp_data = temp_all[temp_all$trip_number %in% unique(actual_data_3_decimals$trip_number), ] %>% 
   dplyr::select(longitude, latitude, trip_number, speed, stop_ind) %>% 
   transmute(longitude = round(.$longitude, 3), latitude = round(.$latitude, 3), trip_number = trip_number, 
-            speed = speed, stop_ind = stop_ind) %>% distinct(longitude, latitude) 
+            speed = speed, stop_ind = stop_ind) %>% distinct(trip_number, longitude, latitude) 
 
 # add traffic density
 temp_data = left_join(temp_data, left_join(temp_data, temp_all %>% 
@@ -337,3 +340,49 @@ ggplot(acc_df_3_decimals[acc_df_3_decimals$traffic_den <= 250 & acc_df_3_decimal
   geom_smooth(aes(y = acc, colour = "Accuracy"), span = 0.4, se = FALSE) + # span controls wiggliness
   geom_smooth(aes(y = n / 1500, colour = "Number of points with this traffic density"), span = 0.4, se = FALSE) + 
   labs(title = "Accuracy vs # of Cars (3 decimals)")
+
+
+
+plot_data = na.omit(temp_data)
+
+factpal = colorFactor(colors()[c(257, 91, 507 , 452, 129)], plot_data$speed_lim2)
+
+leaflet(plot_data) %>% addTiles() %>%
+  addCircles(lng = ~plot_data[plot_data$comp == TRUE, ]$longitude, lat = ~plot_data[plot_data$comp == TRUE, ]$latitude, weight = 1,  color = ~factpal(speed_lim2),
+             radius = 7, fillOpacity = .8, group = "Correct") %>%
+  addCircles(lng = ~plot_data[plot_data$comp == FALSE, ]$longitude, lat = ~plot_data[plot_data$comp == FALSE, ]$latitude, weight = 1,  color = "red",
+             radius = 6, fillOpacity = .7, group = "Incorrect") %>%
+  addLegend("bottomright", pal = factpal, values =plot_data$speed_lim2, title = "Predicted Speed Limit", opacity = 1) %>%
+
+  
+  # Layers control
+  addLayersControl(
+    overlayGroups = c("Correct", "Incorrect"),
+    options = layersControlOptions(collapsed = FALSE)) %>% hideGroup("Incorrect")
+
+
+
+# Find the trip who drove over speed at residential area
+# [1] "0440E235DB634CBBA9CFE4D2FCC70A2400" "0BDFB94CCF4C4C4390972435809504DF00" "11311AE898644124AF2B9630DDCC308900"
+# [4] "138D8F0E12714C79B07AE7232263294300" "14B62AAF76BC4C39B63B28864144264A00" "1E121644216644D493F589511F8ED10000"
+# [7] "1E52173A9D6945C588C328D5E014DBB900" "206143C190DA4969A68604BD4DB46D1000" "23AD3C7ED1BC4C4AA7167E049388CF9400"
+# [10] "262395DF4E55420EAB9AE2CCDBCD576800" "27BFF261BD0446A0ACBF06A820F2E98000" "2D47A7088EC64425B6B7D1E028FA5F2400"
+# [13] "32722FDEC8474250833F282B3C7D49F800" "36304E47D369472C98E99753179841FF00" "36BFB59D9B664A25BE660E715A8C3B9A00"
+# [16] "4A2198F8E99B4C0486FE9DD1738A948700" "6987641383894AC0AFE4CD12EB2B6A7F00" "6A919AC3A9154078B882FBD2D2F6C61700"
+# [19] "6FCA5C5EB33C4F99AC971B482D919AC100" "729852DD1A8A44B8B9B9F95A6F4A3F5E00" "797F6DCF6C4546C9A357D0D898379F5300"
+# [22] "7FB2232D54B04CFE9811DD27AE000E2200" "C74523A1C5BC445883D15226F624FEBC00" "D31489CE1E7B4399804AC47A7EABA5DA00"
+# [25] "E41C8ACF31ED4D95AF2E3EFF4408A92400" "E8D797892E2A4085981FB3133ED434F600"
+plot_data_true = plot_data[plot_data$comp == TRUE, ]
+plot_data_false = plot_data[plot_data$comp == FALSE, ]
+factpal = colorFactor(colors()[c(257, 91, 507 , 452, 129)], plot_data_true$speed_lim2)
+leaflet(plot_data_true) %>% addTiles() %>%
+  addCircles(lng = ~longitude, lat = ~latitude, weight = 1,  color = ~factpal(speed_lim2),
+             radius = 7, fillOpacity = .8, group = "Correct") %>%
+  addCircles(lng = ~plot_data_false$longitude, lat = ~plot_data_false$latitude, weight = 1,  color = "red",
+             radius = 6, fillOpacity = .55, group = "Incorrect") %>%
+  addLegend("bottomright", pal = factpal, values = plot_data$speed_lim2, title = "Predicted Speed Limit", opacity = 1) %>%
+  
+  # Layers control
+  addLayersControl(
+    overlayGroups = c("Correct", "Incorrect"),
+    options = layersControlOptions(collapsed = FALSE)) %>% hideGroup("Incorrect")
