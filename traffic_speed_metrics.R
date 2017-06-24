@@ -281,7 +281,7 @@ temp2$speed_lim2 = ifelse(temp2$speed_lim1 * 0.5 + temp2$quan_speed * 0.5 <= (20
                                  ifelse(temp2$speed_lim1 * 0.5 + temp2$quan_speed * 0.5 <= (55 + 65) / 2, 55,
                                         ifelse(temp2$speed_lim1 * 0.5 + temp2$quan_speed * 0.5 <= (65 + 70) / 2, 65, 70))))
 
-# visualize speed_lim2 in Columbus
+# visualize speed_lim2 in Columbus City
 factpal = colorFactor(topo.colors(5), points$speed_lim2)
 
 leaflet(points) %>% addTiles() %>%
