@@ -34,6 +34,7 @@ points$lane_change = ifelse(points$turning == "Lane Change", 1, 0)
 
 
 # road type classification based on k-means clustering, using (longitude, latitude and ) average speed, traffic density
+# May try different variables
 set.seed(522)
 kmeans = kmeans(points[, c(3, 4)], centers = 3, iter.max = 20, nstart = 20)
 points = na.omit(points) # k-means doesn't handle missing values
