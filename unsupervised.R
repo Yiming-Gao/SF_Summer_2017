@@ -257,5 +257,5 @@ som_cluster <- cutree(hclust(dist(som_model$codes[[1]])), 3)
 plot(som_model, type = "mapping", bgcol = pretty_palette[som_cluster], main = "Clusters") 
 add.cluster.boundaries(som_model, som_cluster)
 
-
+########## tsne ##########
 
