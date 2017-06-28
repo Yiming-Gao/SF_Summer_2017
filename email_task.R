@@ -18,12 +18,18 @@ all_data = fread("Timed_big_data.csv") %>%
   na.omit() %>%
   filter(abs(ratio) < 100) 
 
+latitude_min = 39.80000
+latitude_max = 40.10328
+longitude_min = -83.25714
+longitude_max = -82.70507
+
 dataset = separate(all_data,
                   timestmp_local,
                   c('Hour_editing_needed', 'Minute', 'Second'),
                   sep = ':',
                   fill = 'right',
                   remove = FALSE) %>%
+  filter(latitude >= latitude_min & latitude <= latitude_max & longitude <= longitude_max & longitude >= longitude_min) %>%
   mutate(Hour = as.numeric(substr(Hour_editing_needed,
                                   nchar(Hour_editing_needed)-1 ,
                                   nchar(Hour_editing_needed))),
@@ -54,8 +60,8 @@ set.seed(627)
 all_points = na.omit(all_points) # k-means doesn't handle missing values
 kmeans0 = kmeans(all_points[, c(3, 4)], centers = 3, iter.max = 20, nstart = 20)
 all_points$road_type = kmeans0$cluster
-all_points$road_type = ifelse(all_points$road_type == 2, "Business District", 
-                              ifelse(all_points$road_type == 1, "Residential Road", "Freeway"))
+all_points$road_type = ifelse(all_points$road_type == 2, "Freeway", 
+                              ifelse(all_points$road_type == 1, "Residential Road", "Business District"))
 
 # add median speed
 quan_speed = dataset %>%
@@ -74,13 +80,13 @@ all_points$speed_lim1 = NULL
 
 
 # Merge additional variables
-all_temp = left_join(dataset, all_points, by = c("longitude" = "longitude", "latitude" = "latitude")) 
-all_temp$timestmp_local <- all_temp$Hour_editing_needed <- all_temp$stop_ind <- all_temp$ratio <- NULL
+all_columbus = left_join(dataset, all_points, by = c("longitude" = "longitude", "latitude" = "latitude")) 
+all_columbus$timestmp_local <- all_columbus$Hour_editing_needed <- all_columbus$stop_ind <- all_columbus$ratio <- NULL
 
 
 
 ######################### Trips per day #########################
-temp_0313 = all_temp[all_temp$Date == "2016-03-13", ]
+temp_0313 = all_columbus[all_columbus$Date == "2016-03-13", ]
 temp_0313 = left_join(temp_0313, temp_0313 %>% dplyr::select(trip_number, longitude, latitude) %>% 
                         group_by(trip_number) %>% 
                         distinct(longitude, latitude) %>%
@@ -91,17 +97,95 @@ temp_0313 = left_join(temp_0313, temp_0313 %>% dplyr::select(trip_number, longit
 
 # visualize traffic density on 03/13/2016
 plot_data_0313 = temp_0313 %>% dplyr::select(longitude, latitude, traffic_den_day) %>% distinct(longitude, latitude, traffic_den_day)
+
 pal <- colorNumeric(
   palette = "Reds",
   domain = plot_data_0313$traffic_den_day)
 
-leaflet((temp_0313 %>% dplyr::select(longitude, latitude, traffic_den_day) %>% distinct(longitude, latitude, traffic_den_day))) %>% addTiles() %>%
-  addCircles(lng = ~longitude, lat = ~latitude, weight = 1,  color = ~pal(traffic_den_day),
-             radius = 7, fillOpacity = 0.8) %>%
-  addLegend("bottomright", pal = pal, values = sort(unique(points$traffic_den)), title = "Traffic Density on 03/13/2016", opacity = 1)
+leaflet(plot_data_0313) %>% addTiles() %>%
+  addCircles(lng = ~plot_data_0313[plot_data_0313$traffic_den_day > 1, ]$longitude, lat = ~plot_data_0313[plot_data_0313$traffic_den_day > 1, ]$latitude,
+             weight = 1,  color = ~pal(plot_data_0313[plot_data_0313$traffic_den_day > 1, ]$traffic_den_day),
+             radius = 7, fillOpacity = 1, group = "Traffic density > 1") %>%
+  addCircles(lng = ~plot_data_0313[plot_data_0313$traffic_den_day == 1, ]$longitude, lat = ~plot_data_0313[plot_data_0313$traffic_den_day == 1, ]$latitude,
+             weight = 1,  color = ~pal(plot_data_0313[plot_data_0313$traffic_den_day == 1, ]$traffic_den_day),
+             radius = 7, fillOpacity = 0.3, group = "Traffic density = 1") %>%
+  addLegend("bottomright", pal = pal, values = sort(unique(plot_data_0313$traffic_den_day)), title = "Traffic Density on 03/13/2016", opacity = 1) %>%
+  # Layers control
+  addLayersControl(
+    overlayGroups = c("Traffic density > 1", "Traffic density = 1"),
+    options = layersControlOptions(collapsed = FALSE)) %>% hideGroup("Traffic density = 1")
 
 
+################################ Plot each trip information ###############################
+temp2 = all_columbus %>% dplyr::select(longitude, latitude, trip_number, lonG, speed, Hour, Minute, Second, traffic_den, avg_speed, speed_lim) 
+temp2$Time = temp2$Hour + temp2$Minute / 60 + temp2$Second / 3600
+temp2$label = ifelse(temp2$Hour >=0 & temp2$Hour <12, "am", "pm")
+temp2$Hour = ifelse(temp2$label == "pm" & temp2$Hour != 12, temp2$Hour - 12, temp2$Hour)
+temp2$Mode = as.factor(ifelse(temp2$lonG > 0, "Acceleration", "Deceleration"))
 
+speed_plot_smooth1 <- function(trip_number) {
+  plot_data = temp2[temp2$trip_number == trip_number, ]
+  plot_data_label_index = ceiling(seq(1, nrow(plot_data), length.out = 20))
+  plot_data_breaks = plot_data$Time[plot_data_label_index]
+  plot_data_labels = (paste0(plot_data$Hour[plot_data_label_index], ":",
+                             plot_data$Minute[plot_data_label_index], ":",
+                             round(plot_data$Second[plot_data_label_index], 0), " ",
+                             plot_data$label))[1: 20]
+  
+  ggplot(plot_data, aes(Time)) + 
+    scale_x_continuous(breaks = plot_data_breaks, labels = plot_data_labels) +
+    scale_y_continuous(name = "Speed", breaks = seq(0, 100, 10), sec.axis = sec_axis(~./10, breaks = seq(0, 10, 1), name = "Traffic Density")) + 
+    geom_smooth(aes(y = speed, colour = "Vehicle speed"), se = FALSE) + 
+    geom_smooth(aes(y = speed_lim, colour = "Predicted speed limit"), se = FALSE) +
+    ggtitle(paste("Trip number: ", trip_number)) + ylab("Speed") +
+    labs(colour = "Variable") + 
+    geom_smooth(aes(y = traffic_den * 10, colour = "Traffic density"), se = FALSE) +
+    theme(panel.background = element_rect(fill = 'gray93'), 
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = c(0.85, 0.8))}
 
+# speed_plot_smooth1("17074D96C94C4CF19C82309E39539A1D00")
 
-temp_0313 %>% dplyr::select(longitude, latitude, traffic_den_day) %>% distinct(longitude, latitude, traffic_den_day) 
+speed_plot_line1 <- function(trip_number) {
+  plot_data = temp2[temp2$trip_number == trip_number, ]
+  plot_data_label_index = ceiling(seq(1, nrow(plot_data), length.out = 20))
+  plot_data_breaks = plot_data$Time[plot_data_label_index]
+  plot_data_labels = (paste0(plot_data$Hour[plot_data_label_index], ":",
+                             plot_data$Minute[plot_data_label_index], ":",
+                             round(plot_data$Second[plot_data_label_index], 0), " ",
+                             plot_data$label))[1: 20]
+  
+  ggplot(plot_data, aes(Time)) + 
+    scale_x_continuous(breaks = plot_data_breaks, labels = plot_data_labels) +
+    scale_y_continuous(name = "Speed", breaks = seq(0, 100, 10), sec.axis = sec_axis(~./4, breaks = seq(0, 25, 5), name = "Traffic Density")) + 
+    geom_line(aes(y = speed, colour = "Vehicle speed"), size = 0.8) + 
+    geom_line(aes(y = speed_lim, colour = "Predicted speed limit"), size = 0.8) +
+    ggtitle(paste("Trip number: ", trip_number)) + ylab("Speed") +
+    labs(colour = "Variable") + 
+    geom_line(aes(y = traffic_den * 4, colour = "Traffic density"), size = 0.8) +
+    theme(panel.background = element_rect(fill = 'gray93'), 
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = c(0.85, 0.8))}
+
+# speed_plot_line1("17074D96C94C4CF19C82309E39539A1D00")
+
+acceleration_plot1 <- function(trip_number) {
+  plot_data = temp2[temp2$trip_number == trip_number, ]
+  plot_data_label_index = ceiling(seq(1, nrow(plot_data), length.out = 20))
+  plot_data_breaks = plot_data$Time[plot_data_label_index]
+  plot_data_labels = (paste0(plot_data$Hour[plot_data_label_index], ":",
+                             plot_data$Minute[plot_data_label_index], ":",
+                             round(plot_data$Second[plot_data_label_index], 0), " ",
+                             plot_data$label))[1: 20]
+  
+  ggplot(plot_data, aes(Time)) + 
+    scale_x_continuous(breaks = plot_data_breaks, labels = plot_data_labels) +
+    scale_y_continuous(name = "Traffic Density", breaks = seq(0, 25, 1)) + 
+    geom_point(aes(y = traffic_den, color = Mode)) + 
+    ggtitle(paste("Trip number: ", trip_number)) + ylab("Speed") +
+    labs(colour = "Variable") + 
+    theme(panel.background = element_rect(fill = 'gray93'), 
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = c(0.85, 0.8))}
+
+# acceleration_plot1("17074D96C94C4CF19C82309E39539A1D00")
