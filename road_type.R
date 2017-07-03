@@ -42,6 +42,7 @@ points$road_type = kmeans$cluster
 points$road_type = ifelse(points$road_type == 1, "Business District", ifelse(points$road_type == 2, "Residential Road", "Freeway"))
 
 
+
 # visualize the road type data
 factpal = colorFactor(sort(topo.colors(3)), points$road_type)
 
