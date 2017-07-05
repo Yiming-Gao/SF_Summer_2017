@@ -233,9 +233,9 @@ trip_pred <- function(trip_number) {
 ################################### SOM ################################
 library(kohonen)
 # https://www.slideshare.net/shanelynn/2014-0117-dublin-r-selforganising-maps-for-customer-segmentation-shane-lynn
-data_som = na.omit(new_datas2[, which(names(new_datas2) %in% 
-                                        c("Time", "latG", "lonG", "speed", "ang_speed_gyro", "lon_delta",
-                                          "inc_mileage", "lag_speed"))])[seq(1, 100001, length.out = 2000), ]
+data_som = na.omit(left_join(new_datas2, all_distr, by = c("trip_number" = "trip_number"))[, which(names(left_join(new_datas2, all_distr, by = c("trip_number" = "trip_number"))) %in% 
+                                        c("latG", "lonG", "speed", "ang_speed_gyro", "lon_delta",
+                                          "stop_ind", "percentage"))])[seq(1, 100001, length.out = 2000), ]
 data_som_matrix = as.matrix(scale(data_som))
 som_grid = somgrid(xdim = 20, ydim = 20, topo = "hexagonal")
 som_model = som(data_som_matrix, grid = som_grid, rlen = 100, alpha = c(0.05, 0.01), keep.data = TRUE)
@@ -245,17 +245,86 @@ plot(som_model, type = "changes")
 plot(som_model, type = "count", palette.name = coolBlueHotRed)
 plot(som_model, type = "dist.neighbours", palette.name = coolBlueHotRed)
 plot(som_model, type = "codes")
-plot(som_model, type = "property", property = som_model$codes[[1]][, 4], main = "speed", palette.name = coolBlueHotRed)
+plot(som_model, type = "property", property = som_model$codes[[1]][, 3], main = "speed", palette.name = coolBlueHotRed)
 # unscaled plot
-var_unscaled = aggregate(as.numeric(data_som[ ,4]), by=list(som_model$unit.classif), FUN=mean, simplify=TRUE)$x
-plot(som_model, type = "property", property=var_unscaled, main="speed", palette.name=coolBlueHotRed)
-
+plotHeatMap(som_model, data = data_som)
 
 ## use hierarchical clustering to cluster
-som_cluster <- cutree(hclust(dist(som_model$codes[[1]])), 3)
+som_cluster = kmeans(dist(som_model$codes[[1]][, 1:6]), centers = 2)$cluster # exclude percentage
 # plot these results:
-plot(som_model, type = "mapping", bgcol = pretty_palette[som_cluster], main = "Clusters") 
-add.cluster.boundaries(som_model, som_cluster)
+plot(som_model, type = "mapping", bgcol = c("#BFFFFFFF", "#FF9FFFFF")[som_cluster], main = "Clusters") 
+add.cluster.boundaries(som_model, som_cluster, lwd = 3)
 
-########## tsne ##########
 
+
+
+################################## More clustering ################################
+# Merge additional variables
+all_columbus = left_join(dataset, all_points, by = c("longitude" = "longitude", "latitude" = "latitude")) 
+all_columbus$timestmp_local <- all_columbus$Hour_editing_needed <- NULL
+
+prin_comp = prcomp(na.omit(all_columbus[all_columbus$Date == "2016-03-13", -which(names(all_columbus) %in% 
+                                                                                    c("trip_number", "Date", "Hour", "Minute", "Second", "latitude",
+                                                                                      "longitude", "ratio", "road_type", "algorithm", "speed_lim"))]), scale. = T) # normalize the variables to have standard deviation equals to 1
+prin_comp$rotation[1:5, 1:4] # returns PC loadings: first 3 principal components and first 5 rows
+dim(prin_comp$x) # matrix x has the pc score vectors in a 165266 * 8 dimension
+
+# plot the resultant principal components
+# biplot(prin_comp, scale = 0) # scale = 0 ensures that arrows are scaled to represent the loadings
+
+
+# Eigenvalues
+eig = (prin_comp$sdev)^2
+
+# Variances 
+variance = eig / sum(eig)
+
+# Cumulative variances
+cumvar = cumsum(variance)
+prin_comp_active = data.frame(eig = eig, variance = variance, cumvariance = cumvar)
+
+# scree plot using factoextra package
+fviz_screeplot(prin_comp, addlabels = TRUE, hjust = -0.3, linecolor = "firebrick1", ncp = 22)
+
+# comulative scree plot
+plot(cumsum(variance), xlab = "Principal Component", ylab = "Cumulative Proportion of Variance Explained", main = "Cumulative Scree Plot",
+     type = "b", col = "dodgerblue2", xaxt = "n", yaxt  = "n")
+axis(1, at = seq(1, 22), las = 1)
+axis(2, at = seq(0, 1, 0.1), las = 1)
+grid()
+
+
+
+########### Coordinates of variables on the principal components
+# Helper function:
+# Correlation between variables and principal components
+var_cor_func <- function(var.loadings, comp.sdev) {
+  var.loadings * comp.sdev
+}
+
+# Variable correlation / coordinates
+loadings = prin_comp$rotation
+sdev = prin_comp$sdev
+var.coord <- var.cor <- t(apply(loadings, 1, var_cor_func, sdev))
+head(var.coord[, 1:5])
+
+# Contributions of the variables to the principal components
+var.cos2 = var.coord^2
+comp.cos2 = apply(var.cos2, 2, sum)
+contrib = function(var.cos2, comp.cos2) {var.cos2 * 100 / comp.cos2}
+var.contrib = t(apply(var.cos2, 1, contrib, comp.cos2))
+
+# Highlight the most important (i.e. contributing variables)
+fviz_pca_var(prin_comp, col.var = "contrib") +
+  scale_color_gradient2(low = "white", mid = "blue", high = "red", midpoint = 5) + 
+  theme_minimal() # PC1 and PC2
+
+
+
+# hierarchical clustering
+hc = hclust(dist(prin_comp$x), method = "complete")
+cut = cutree(hc , 3)
+ColorDendrogram(iris_hc, y = iris_cut,
+                labels = names(iris_cut),
+                main = "Iris, Complete Linkage",
+                branchlength = 1.5)
