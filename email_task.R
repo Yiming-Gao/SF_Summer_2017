@@ -99,17 +99,17 @@ temp_0313 = left_join(temp_0313, temp_0313 %>% dplyr::select(trip_number, longit
 plot_data_0313 = temp_0313 %>% dplyr::select(longitude, latitude, traffic_den_day) %>% distinct(longitude, latitude, traffic_den_day)
 
 pal <- colorNumeric(
-  palette = "Reds",
+  palette = c("#E8E4F0", "#C4CBE3", "#91B4D6", "#549BC6", "#1B79B5", "#045D92", "#023858"),
   domain = plot_data_0313$traffic_den_day)
 
 # 1b. map of traffic density
 leaflet(plot_data_0313) %>% addTiles() %>%
   addCircles(lng = ~plot_data_0313[plot_data_0313$traffic_den_day > 1, ]$longitude, lat = ~plot_data_0313[plot_data_0313$traffic_den_day > 1, ]$latitude,
              weight = 1,  color = ~pal(plot_data_0313[plot_data_0313$traffic_den_day > 1, ]$traffic_den_day),
-             radius = 7, fillOpacity = 1, group = "Traffic density > 1") %>%
+             radius = 8, fillOpacity = 1, group = "Traffic density > 1") %>%
   addCircles(lng = ~plot_data_0313[plot_data_0313$traffic_den_day == 1, ]$longitude, lat = ~plot_data_0313[plot_data_0313$traffic_den_day == 1, ]$latitude,
              weight = 1,  color = ~pal(plot_data_0313[plot_data_0313$traffic_den_day == 1, ]$traffic_den_day),
-             radius = 7, fillOpacity = 0.3, group = "Traffic density = 1") %>%
+             radius = 8, fillOpacity = 0.3, group = "Traffic density = 1") %>%
   addLegend("bottomright", pal = pal, values = sort(unique(plot_data_0313$traffic_den_day)), title = "Traffic Density on 03/13/2016", opacity = 1) %>%
   # Layers control
   addLayersControl(
@@ -166,7 +166,7 @@ speed_plot_line1 <- function(trip_number) {
   plot_data_breaks = plot_data$Time[plot_data_label_index]
   plot_data_labels = (paste0(plot_data$Hour[plot_data_label_index], ":",
                              plot_data$Minute[plot_data_label_index], ":",
-                             round(plot_data$Second[plot_data_label_index], 0), " ",
+                             round(plot_data$Second[plot_data_label_index], 0), " ", 
                              plot_data$label))[1: 20]
   
   ggplot(plot_data, aes(Time)) + 
@@ -195,10 +195,12 @@ acceleration_plot1 <- function(trip_number) {
   
   ggplot(plot_data, aes(Time)) + 
     scale_x_continuous(breaks = plot_data_breaks, labels = plot_data_labels) +
-    scale_y_continuous(name = "Traffic Density", breaks = seq(0, 25, 1)) + 
-    geom_point(aes(y = traffic_den, color = Mode)) + 
+    scale_y_continuous(name = "Speed", breaks = seq(0, 100, 10), sec.axis = sec_axis(~./10, breaks = seq(0, 10, 1), name = "Traffic Density")) + 
+    geom_smooth(aes(y = speed, colour = Mode), se = FALSE, span = 0.4) + 
+    geom_smooth(aes(y = speed_lim, colour = "Predicted speed limit"), se = FALSE, span = 0.4) +
     ggtitle(paste("Trip number: ", trip_number)) + ylab("Speed") +
     labs(colour = "Variable") + 
+    geom_smooth(aes(y = traffic_den * 10, colour = "Traffic density"), se = FALSE, span = 0.4) +
     theme(panel.background = element_rect(fill = 'gray93'), 
           axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = c(0.85, 0.8))}
@@ -274,3 +276,34 @@ acceleration_plot2 <- function(trip_number) {
           legend.position = c(0.15, 0.8))}
 
 # acceleration_plot2("17074D96C94C4CF19C82309E39539A1D00")
+
+
+
+
+
+
+# 1c
+all_columbus_weekends = all_columbus[all_columbus$Date == "2016-03-06" | all_columbus$Date == "2016-03-12" | all_columbus$Date == "2016-03-13" | all_columbus$Date == "2016-03-19",] %>% 
+  dplyr::select(trip_number, Hour) %>% distinct(trip_number, Hour) %>% group_by(Hour) %>% summarise(n = n()) %>% mutate(avg = round(n/4))
+all_columbus_weekends$Type = as.factor("Weekends")
+all_columbus_weekdays = all_columbus[!(all_columbus$Date == "2016-03-06" | all_columbus$Date == "2016-03-12" | all_columbus$Date == "2016-03-13" | all_columbus$Date == "2016-03-19"),] %>% 
+  dplyr::select(trip_number, Hour) %>% distinct(trip_number, Hour) %>% group_by(Hour) %>% summarise(n = n()) %>% mutate(avg = round(n/10))
+all_columbus_weekdays$Type = as.factor("Weekdays")
+
+
+ggplot(data = rbind(all_columbus_weekdays, all_columbus_weekends), aes(x = Hour, y = avg, fill = Type)) + 
+  geom_bar(stat = "identity", position = position_dodge(), width = 0.65) +
+  theme(panel.background = element_rect(fill = 'gray93')) + 
+  scale_fill_brewer(palette = "Paired") +
+  labs(title = "Average trips per hour on weekdays & weekends") +
+  labs(x = "Hour", y = "Count") + 
+  scale_y_continuous(breaks = seq(0, 40, 5)) + scale_x_continuous(breaks = seq(0, 23, 1))
+
+# number of trips by weekday/ weekends
+ggplot(data = all_columbus %>% dplyr::select(trip_number, Date) %>% group_by(Date) %>% mutate(n = length(unique(trip_number))) %>% distinct(n) %>% mutate(Type = as.factor(ifelse(Date == "2016-03-06" | Date == "2016-03-12" | Date == "2016-03-13"| Date == "2016-03-19", "Weekends", "Weekdays" ))), aes(x = Date, y = n, fill = Type)) + 
+  geom_bar(stat = "identity", position = position_dodge(), width = 0.65) + 
+  theme(panel.background = element_rect(fill = 'gray93')) + 
+  scale_fill_brewer(palette = "Paired") +
+  labs(title = "Number of trips on weekdays & weekends") +
+  labs(x = "Date", y = "Count") + 
+  scale_y_continuous(breaks = seq(0, 550, 50)) 
