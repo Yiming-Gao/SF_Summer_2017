@@ -196,7 +196,7 @@ acceleration_plot1 <- function(trip_number) {
   ggplot(plot_data, aes(Time)) + 
     scale_x_continuous(breaks = plot_data_breaks, labels = plot_data_labels) +
     scale_y_continuous(name = "Speed", breaks = seq(0, 100, 10), sec.axis = sec_axis(~./10, breaks = seq(0, 10, 1), name = "Traffic Density")) + 
-    geom_smooth(aes(y = speed, colour = Mode), se = FALSE, span = 0.4) + 
+    geom_point(aes(y = speed, colour = Mode)) + 
     geom_smooth(aes(y = speed_lim, colour = "Predicted speed limit"), se = FALSE, span = 0.4) +
     ggtitle(paste("Trip number: ", trip_number)) + ylab("Speed") +
     labs(colour = "Variable") + 
@@ -266,11 +266,11 @@ acceleration_plot2 <- function(trip_number) {
   
   ggplot(plot_data, aes(Time)) + 
     scale_x_continuous(breaks = plot_data_breaks, labels = plot_data_labels) +
-    scale_y_continuous(name = "Average Speed") + 
-    geom_smooth(aes(y = avg_speed), se = FALSE, span = 0.4) +
-    geom_point(aes(y = avg_speed, color = Mode)) + 
+    geom_point(aes(y = speed, colour = Mode)) + 
+    geom_smooth(aes(y = speed_lim, colour = "Predicted speed limit"), se = FALSE, span = 0.4) +
     ggtitle(paste("Trip number: ", trip_number)) + ylab("Speed") +
     labs(colour = "Variable") + 
+    geom_smooth(aes(y = avg_speed, colour = "Average speed"), se = FALSE, span = 0.4) +
     theme(panel.background = element_rect(fill = 'gray93'), 
           axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = c(0.15, 0.8))}
