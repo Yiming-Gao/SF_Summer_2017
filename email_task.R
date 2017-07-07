@@ -276,7 +276,8 @@ acceleration_plot2 <- function(trip_number) {
           legend.position = c(0.15, 0.8))}
 
 # acceleration_plot2("17074D96C94C4CF19C82309E39539A1D00")
-
+# acceleration_plot2("02C6D1CFCCF0404B89C0ED4A0EF507DC00")
+# acceleration_plot2("0E3CE647C8714AF7A2243AEEBF03A5C300")
 
 
 
