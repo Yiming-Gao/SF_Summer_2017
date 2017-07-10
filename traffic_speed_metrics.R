@@ -1,4 +1,4 @@
-setwd("/san-data/usecase/magnet_g/misc/PCA_DATA_VIS/") ## set working directory
+setwd("/san-data/usecase/magnet_g/misc/PCA_DATA_VIS/") # set working directory
 
 library(plyr)
 library(zoo)
