@@ -240,7 +240,7 @@ acceleration_plot1 <- function(trip_number) {
 
 # 2di
 speed_plot_smooth2 <- function(trip_number) {
-  plot_data = temp2[temp2$trip_number == trip_number, ][1: 764, ]
+  plot_data = temp2[temp2$trip_number == trip_number, ]
   plot_data_label_index = ceiling(seq(1, nrow(plot_data), length.out = 20))
   plot_data_breaks = plot_data$Time[plot_data_label_index]
   plot_data_labels = (paste0(plot_data$Hour[plot_data_label_index], ":",
@@ -319,7 +319,7 @@ temp2$Mode1 = as.factor(ifelse(temp2$lonG >= 0.15, "Acceleration", ifelse(temp2$
 temp2$Mode2 = as.factor(ifelse(temp2$lonG >= 0.2, "Acceleration", ifelse(temp2$lonG <= -0.2, "Deceleration", NA)))
 
 acceleration_plot3 <- function(trip_number) {
-  plot_data = temp2[temp2$trip_number == trip_number, ][1: 764, ]
+  plot_data = temp2[temp2$trip_number == trip_number, ]
   plot_data_label_index = ceiling(seq(1, nrow(plot_data), length.out = 20))
   plot_data_breaks = plot_data$Time[plot_data_label_index]
   plot_data_labels = (paste0(plot_data$Hour[plot_data_label_index], ":",
@@ -395,6 +395,52 @@ ggplot(data = all_columbus %>% dplyr::select(trip_number, Date) %>% group_by(Dat
 
 
 # visualize speed_lim2 in Columbus
+plot_trip_data = all_data[all_data$trip_number == "051A1A2BCE484F3FBC217401836A9AA200", ]
+
+plot_trip_data = plot_trip_data %>% mutate(avg_latG = c(rollapply(latG, width = 10, mean, fill = NA)))
+
+plot_trip_data$algorithm <- NA
+plot_trip_data$algorithm[abs(plot_trip_data$ang_speed_gyro) > 10 & abs(plot_trip_data$latG) > .07] <- "Normal Turn"
+plot_trip_data$algorithm[plot_trip_data$latG >= -.07 & plot_trip_data$latG < .07] <- "Normal Driving"
+plot_trip_data$algorithm[abs(plot_trip_data$ang_speed_gyro) < 10 & abs(plot_trip_data$latG) > .07 & abs(plot_trip_data$avg_latG) < .055] <- "Lane Change"
+plot_trip_data$algorithm[abs(plot_trip_data$ang_speed_gyro) < 10 & abs(plot_trip_data$latG) > .07 & abs(plot_trip_data$avg_latG) > .055] <- "Curve in the road"
+
+plot_trip_data_small = rbind(plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-12 19:53:5.0299999714"): (which(plot_trip_data$timestmp_local == "2016-3-12 19:53:5.0299999714") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-12 19:59:30.032000065"): (which(plot_trip_data$timestmp_local == "2016-3-12 19:59:30.032000065") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-12 19:59:35.036999941"): (which(plot_trip_data$timestmp_local == "2016-3-12 19:59:35.036999941") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-12 19:59:40.002999783"): (which(plot_trip_data$timestmp_local == "2016-3-12 19:59:40.002999783") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-12 19:59:45.009999752"): (which(plot_trip_data$timestmp_local == "2016-3-12 19:59:45.009999752") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-12 19:59:50.016000032"): (which(plot_trip_data$timestmp_local == "2016-3-12 19:59:50.016000032") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-12 19:59:55.022000074"): (which(plot_trip_data$timestmp_local == "2016-3-12 19:59:55.022000074") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-12 20:0:45.013999939"): (which(plot_trip_data$timestmp_local == "2016-3-12 20:0:45.013999939") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-12 20:0:50.021000385"): (which(plot_trip_data$timestmp_local == "2016-3-12 20:0:50.021000385") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-12 20:0:55.02699995"): (which(plot_trip_data$timestmp_local == "2016-3-12 20:0:55.02699995") + 4), ])
+plot_trip_data_small = rbind(plot_trip_data[914: 1078, ],
+                             plot_trip_data[1234: 1248, ])
+#      
+# 
+
+pal <- colorNumeric(
+  palette = "Reds",
+  domain = plot_trip_data$speed)
+
+leaflet(plot_trip_data) %>% addTiles() %>%
+  addCircles(lng = ~longitude, lat = ~latitude, weight = 1,  color = ~pal(speed),
+             radius = 7, fillOpacity = 0.8,
+             popup = paste("Speed: ", plot_trip_data$speed, "<br>",
+                           "Algorithm: ", plot_trip_data$algorithm)) %>%
+  addCircles(lng = ~plot_trip_data_small$longitude, lat = ~plot_trip_data_small$latitude, 
+             weight = 1,  color = "dodgerblue", radius = 9, fillOpacity = 1,
+             popup = paste("Speed: ", plot_trip_data_small$speed, "<br>",
+                           "Algorithm: ", plot_trip_data_small$algorithm)) %>%
+  addLegend("bottomright", pal = pal, values = plot_trip_data$speed, title = "Vehicle speed", opacity = 1)
+
+
+
+
+
+
+# visualize speed_lim2 in Columbus
 plot_trip_data = all_data[all_data$trip_number == "00A5B2C4E9254172BE08387115D195FA00", ]
 
 plot_trip_data = plot_trip_data %>% mutate(avg_latG = c(rollapply(latG, width = 10, mean, fill = NA)))
@@ -405,7 +451,7 @@ plot_trip_data$algorithm[plot_trip_data$latG >= -.07 & plot_trip_data$latG < .07
 plot_trip_data$algorithm[abs(plot_trip_data$ang_speed_gyro) < 10 & abs(plot_trip_data$latG) > .07 & abs(plot_trip_data$avg_latG) < .055] <- "Lane Change"
 plot_trip_data$algorithm[abs(plot_trip_data$ang_speed_gyro) < 10 & abs(plot_trip_data$latG) > .07 & abs(plot_trip_data$avg_latG) > .055] <- "Curve in the road"
 
-plot_trip_data_small = rbind(plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:5:12.009999752"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:5:12.009999752") + 4), ],
+plot_trip_data_small = rbind(plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:6:4.0160000324"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:6:4.0160000324") + 4), ],
                              plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:7:29.032000065"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:7:29.032000065") + 4), ],
                              plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:7:34.136000156"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:7:34.136000156") + 4), ],
                              plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:7:39.032000065"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:7:39.032000065") + 4), ],
@@ -414,7 +460,8 @@ plot_trip_data_small = rbind(plot_trip_data[which(plot_trip_data$timestmp_local 
                              plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:7:54.03399992"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:7:54.03399992") + 4), ],
                              plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:7:59.078000069"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:7:59.078000069") + 4), ],
                              plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:8:4.003000021"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:8:4.003000021") + 4), ])
-
+plot_trip_data_small = rbind(plot_trip_data[914: 1078, ],
+                             plot_trip_data[1234: 1248, ])
 #      
 # 
 
