@@ -1,0 +1,100 @@
+---
+title: "Telematics Predictive Variables"
+author:
+- Yixuan An, Yiming Gao  
+- P&C Actuarial Intern
+- State Farm Research and Development Center
+output: 
+  html_document:
+     theme: simplex #red
+     toc: yes
+     toc_float: yes
+     code_folding: show
+  header-includes: \usepackage{amsmath}
+---
+# Project Introduction
+
++ Creating telematics variables using algorithms and visualizations methods for interpretation that could eventually be tested in the <span style="color:red">**Drive Safe & Save™ Index Model**</span>
+
+
++ Testing and Evaluating the accuracies of our prior and newly developed algorithms utilizing various techniques like
+    a) External Resources (Google Maps, ITO Maps, Columbus Smart City Map, DIS Data etc.)
+    b) Visualizations
+    c) Machine Learning 
+
+# Machine Learning Methodologies
+> Principal Component Analysis
+
+Principal component analysis(PCA) is a statistical procedure that uses an orthogonal transformation to convert a set of observations of correlated telematics variables into a set of values of **linearly uncorrelated** variables called **principal components**.
+
+
+> Clustering
+
++ K-means clustering follows a simple and easy way to classify a given data set through a **certain number of clusters** (assume k clusters), which helps us to find the potential categories of road type, turning algorithm etc.
+
++ Hierarchical clustering is a method of cluster analysis which seeks to build a **hierarchy** of clusters. We assigned each observation to its own cluster. Then, computed the similarity (i.e. the distance between two lat-long coordinates) between each of the clusters and joined the two most similar clusters. Hierarchical clustering was implemented to combine several observations near one intersection into one group. 
+
+
+> T-distributed Stochastic Neighbor Embedding
+
+It is a non-linear dimensional reduction algorithm that finds patterns in the data by identifying observed clusters based on similarity of data points with multiple features. It maps the multi-dimensional data to a lower dimensional space. Essentially it is mainly a **data exploration** and **visualization** technique.
+
+# Visualization Showcase
+
+
+
+> Telematics Variables
+
+### Average Speed
+1. ![Visualization 1](/san-data/usecase/magnet_g/misc/PCA_DATA_VIS/yixuan/Summer 2017/visualization summary/heat.JPG) 
+
+[Heat Map of Average Speed in Columbus](https://sf-rstudio-server-discovery.opr.statefarm.org/s/38ca0cfc78a31a88e99eb/file_show?path=%2Fsan-data%2Fusecase%2Fmagnet_g%2Fmisc%2FPCA_DATA_VIS%2Fyixuan%2FSummer+2017%2Fvisualization+summary%2Favg_speed_0313_columbus.html)
+
+### Traffic Density
+1. ![Visualization 1](/san-data/usecase/magnet_g/misc/PCA_DATA_VIS/yixuan/Summer 2017/visualization summary/trafficdensity.JPG) 
+
+[Traffic Density Map with Cluster Markers](https://sf-rstudio-server-discovery.opr.statefarm.org/s/38ca0cfc78a31a88e99eb/file_show?path=%2Fsan-data%2Fusecase%2Fmagnet_g%2Fmisc%2FPCA_DATA_VIS%2Fyixuan%2FSummer+2017%2Fvisualization+summary%2Ftraffic_density_active.html)
+
+
+### Road Type
+1. ![Visualization 1](/san-data/usecase/magnet_g/misc/PCA_DATA_VIS/yixuan/Summer 2017/visualization summary/roadtyype.JPG) 
+
+[Road Type Map of Columbus](https://sf-rstudio-server-discovery.opr.statefarm.org/s/38ca0cfc78a31a88e99eb/file_show?path=%2Fsan-data%2Fusecase%2Fmagnet_g%2Fmisc%2FPCA_DATA_VIS%2Fyixuan%2FSummer+2017%2Fvisualization+summary%2Froad_type_0313_columbus.html)
+
+
+### Speed Limit
+1. ![Visualization 1](/san-data/usecase/magnet_g/misc/PCA_DATA_VIS/yixuan/Summer 2017/visualization summary/speedlim.JPG) 
+
+[Speed Limit Prediction Map](https://sf-rstudio-server-discovery.opr.statefarm.org/s/38ca0cfc78a31a88e99eb/file_show?path=%2Fsan-data%2Fusecase%2Fmagnet_g%2Fmisc%2FPCA_DATA_VIS%2Fyixuan%2FSummer+2017%2Fvisualization+summary%2Fspeed_lim_0313_columbus.html)
+
+
+### Accleration/Deceleration
+1. ![Visualization 1](/san-data/usecase/magnet_g/misc/PCA_DATA_VIS/yixuan/Summer 2017/visualization summary/acc.PNG) 
+
+[Speed Trend of One Sample Trip](https://sf-rstudio-server-discovery.opr.statefarm.org/s/38ca0cfc78a31a88e99eb/file_show?path=%2Fsan-data%2Fusecase%2Fmagnet_g%2Fmisc%2FPCA_DATA_VIS%2Fyixuan%2FSummer+2017%2Fvisualization+summary%2Facc.PNG)
+
+
+
+### Intersection
+1. ![Visualization 1](/san-data/usecase/magnet_g/misc/PCA_DATA_VIS/yixuan/Summer 2017/visualization summary/inter1.JPG) 
+
+[Observations Near Intersections Detected by PCA & Clustering](https://sf-rstudio-server-discovery.opr.statefarm.org/s/38ca0cfc78a31a88e99eb/file_show?path=%2Fsan-data%2Fusecase%2Fmagnet_g%2Fmisc%2FPCA_DATA_VIS%2Fyixuan%2FSummer+2017%2Fvisualization+summary%2Fintersection_cluster_cmarker.html)
+
+
+2. ![Visualization 2](/san-data/usecase/magnet_g/misc/PCA_DATA_VIS/yixuan/Summer 2017/visualization summary/inter2.JPG) 
+
+[Validation the Accuracies of Algorithm and Machine Learning Techniques](https://sf-rstudio-server-discovery.opr.statefarm.org/s/38ca0cfc78a31a88e99eb/file_show?path=%2Fsan-data%2Fusecase%2Fmagnet_g%2Fmisc%2FPCA_DATA_VIS%2Fyixuan%2FSummer+2017%2Fvisualization+summary%2Fcomparison_intersection_8.html)
+
+
+
+### Traffic Signal
+![Traffic Lights](/san-data/usecase/magnet_g/misc/PCA_DATA_VIS/yixuan/Summer 2017/visualization summary/traffic light.JPG) 
+[Visualization of Traffic Lights with Customized Icons](https://sf-rstudio-server-discovery.opr.statefarm.org/s/38ca0cfc78a31a88e99eb/file_show?path=%2Fsan-data%2Fusecase%2Fmagnet_g%2Fmisc%2FPCA_DATA_VIS%2Fyixuan%2FSummer+2017%2Fvisualization+summary%2Ftraffic_light.html)
+
+
+
+
+> Sample Trip
+
+![Visualization 1](/san-data/usecase/magnet_g/misc/PCA_DATA_VIS/yixuan/Summer 2017/visualization summary/sssampel.JPG)
+[Visualization of One Sample Trip](https://sf-rstudio-server-discovery.opr.statefarm.org/s/38ca0cfc78a31a88e99eb/file_show?path=%2Fsan-data%2Fusecase%2Fmagnet_g%2Fmisc%2FPCA_DATA_VIS%2Fyixuan%2FSummer+2017%2Fvisualization+summary%2Fsample_trip.3.0.html)
