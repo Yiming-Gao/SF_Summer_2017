@@ -1,0 +1,27 @@
+body{ /* Normal  */
+      font-size: 15px;
+  }
+p {line-height: 1.5em;}
+td {  /* Table  */
+  font-size: 8px;
+}
+h1.title {
+  font-size: 38px;
+}
+h1 { /* Header 1 */
+  font-size: 28px;
+  color: Crimson;
+}
+h2 { /* Header 2 */
+    font-size: 22px;
+  color: Crimson;
+}
+h3 { /* Header 3 */
+  font-size: 20px;
+}
+code.r{ /* Code block */
+    font-size: 12px;
+}
+pre { /* Code block - determines code spacing between lines */
+    font-size: 14px;
+}
