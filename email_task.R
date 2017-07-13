@@ -87,7 +87,7 @@ all_columbus$timestmp_local <- all_columbus$Hour_editing_needed <- all_columbus$
 
 ######################### 1a. Trips per day #########################
 temp_0313 = all_columbus[all_columbus$Date == "2016-03-13", ]
-temp_0313 = left_join(temp_0313, temp_0313 %>% dplyr::select(trip_number, longitude, latitude) %>% 
+temp_0313 = left_join(temp_0313, temp_0313 %>% dplyr::select(trip_number, longitude, latitude, road_type, speed_lim_smooth) %>% 
                         group_by(trip_number) %>% 
                         distinct(longitude, latitude) %>%
                         group_by(longitude, latitude) %>%
@@ -96,7 +96,8 @@ temp_0313 = left_join(temp_0313, temp_0313 %>% dplyr::select(trip_number, longit
 # temp_0313[temp_0313$traffic_den != temp_0313$traffic_den_day, ]
 
 # visualize traffic density on 03/13/2016
-plot_data_0313 = temp_0313 %>% dplyr::select(longitude, latitude, traffic_den_day) %>% distinct(longitude, latitude, traffic_den_day)
+plot_data_0313 = temp_0313 %>% dplyr::select(longitude, latitude, traffic_den_day, road_type, speed_lim_smooth) %>%
+  distinct(longitude, latitude, traffic_den_day, road_type, speed_lim_smooth)
 
 pal <- colorNumeric(
   palette = c("#E8E4F0", "#C4CBE3", "#91B4D6", "#549BC6", "#1B79B5", "#045D92", "#023858"),
@@ -117,8 +118,6 @@ leaflet(plot_data_0313) %>% addTiles() %>%
     options = layersControlOptions(collapsed = FALSE)) %>% hideGroup("Traffic density = 1")
 
 # 2b. map of average speed
-plot_data_0313 = temp_0313 %>% dplyr::select(longitude, latitude, traffic_den_day, avg_speed) %>% distinct(longitude, latitude, traffic_den_day, avg_speed)
-
 pal <- colorNumeric(
   palette = "Reds",
   domain = plot_data_0313$avg_speed)
@@ -128,6 +127,28 @@ leaflet(plot_data_0313) %>% addTiles() %>%
              weight = 1,  color = ~pal(avg_speed),
              radius = 7, fillOpacity = 0.8) %>%
   addLegend("bottomright", pal = pal, values = plot_data_0313$avg_speed, title = "Average Speed on 03/13/2016", opacity = 1)
+
+# map of speed limit
+factpal = colorFactor(colors()[c(257, 91, 507 , 452, 129)], plot_data_0313$speed_lim_smooth)
+# factpal = colorFactor(topo.colors(3), points[points$traffic_den >= 5, ]$road_type)
+
+leaflet(plot_data_0313) %>% addTiles() %>%
+  addCircles(lng = ~plot_data_0313$longitude, lat = ~plot_data_0313$latitude, weight = 1,  color = ~factpal(speed_lim_smooth),
+             radius = 7.5, fillOpacity = 1) %>%
+  addLegend("bottomright", pal = factpal, values = plot_data_0313$speed_lim_smooth, title = "Speed Limit Prediction", opacity = 1)
+
+
+# map of road type
+# visualize road type
+factpal = colorFactor(topo.colors(3), plot_data_0313$road_type)
+
+leaflet(plot_data_0313) %>% addTiles() %>%
+  addCircles(lng = ~plot_data_0313$longitude, lat = ~plot_data_0313$latitude, weight = 1,  color = ~factpal(road_type),
+             radius = 7.5, fillOpacity = 0.8) %>%
+  addLegend("bottomright", pal = factpal, values = plot_data_0313$road_type, title = "Road Type Prediction", opacity = 1)
+
+
+
 
 ################################ Plot each trip information ###############################
 temp2 = all_columbus %>% dplyr::select(longitude, latitude, trip_number, lonG, speed, Hour, Minute, Second, traffic_den, avg_speed, speed_lim) 
@@ -365,3 +386,49 @@ ggplot(data = all_columbus %>% dplyr::select(trip_number, Date) %>% group_by(Dat
   labs(title = "Number of trips on weekdays & weekends") +
   labs(x = "Date", y = "Count") + 
   scale_y_continuous(breaks = seq(0, 550, 50)) 
+
+
+
+
+
+
+
+
+# visualize speed_lim2 in Columbus
+plot_trip_data = all_data[all_data$trip_number == "00A5B2C4E9254172BE08387115D195FA00", ]
+
+plot_trip_data = plot_trip_data %>% mutate(avg_latG = c(rollapply(latG, width = 10, mean, fill = NA)))
+
+plot_trip_data$algorithm <- NA
+plot_trip_data$algorithm[abs(plot_trip_data$ang_speed_gyro) > 10 & abs(plot_trip_data$latG) > .07] <- "Normal Turn"
+plot_trip_data$algorithm[plot_trip_data$latG >= -.07 & plot_trip_data$latG < .07] <- "Normal Driving"
+plot_trip_data$algorithm[abs(plot_trip_data$ang_speed_gyro) < 10 & abs(plot_trip_data$latG) > .07 & abs(plot_trip_data$avg_latG) < .055] <- "Lane Change"
+plot_trip_data$algorithm[abs(plot_trip_data$ang_speed_gyro) < 10 & abs(plot_trip_data$latG) > .07 & abs(plot_trip_data$avg_latG) > .055] <- "Curve in the road"
+
+plot_trip_data_small = rbind(plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:5:12.009999752"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:5:12.009999752") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:7:29.032000065"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:7:29.032000065") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:7:34.136000156"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:7:34.136000156") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:7:39.032000065"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:7:39.032000065") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:7:44.016000032"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:7:44.016000032") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:7:49.025000095"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:7:49.025000095") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:7:54.03399992"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:7:54.03399992") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:7:59.078000069"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:7:59.078000069") + 4), ],
+                             plot_trip_data[which(plot_trip_data$timestmp_local == "2016-3-13 9:8:4.003000021"): (which(plot_trip_data$timestmp_local == "2016-3-13 9:8:4.003000021") + 4), ])
+
+#      
+# 
+
+pal <- colorNumeric(
+  palette = "Reds",
+  domain = plot_trip_data$speed)
+
+leaflet(plot_trip_data) %>% addTiles() %>%
+  addCircles(lng = ~longitude, lat = ~latitude, weight = 1,  color = ~pal(speed),
+             radius = 7, fillOpacity = 0.8,
+             popup = paste("Speed: ", plot_trip_data$speed, "<br>",
+                           "Algorithm: ", plot_trip_data$algorithm)) %>%
+  addCircles(lng = ~plot_trip_data_small$longitude, lat = ~plot_trip_data_small$latitude, 
+             weight = 1,  color = "dodgerblue", radius = 9, fillOpacity = 1,
+             popup = paste("Speed: ", plot_trip_data_small$speed, "<br>",
+                           "Algorithm: ", plot_trip_data_small$algorithm)) %>%
+  addLegend("bottomright", pal = pal, values = plot_trip_data$speed, title = "Vehicle speed", opacity = 1)
