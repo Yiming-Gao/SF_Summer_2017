@@ -1,4 +1,4 @@
-#####
+### 
 
 # plot one trip
 plot_data = datas2[datas2$trip_number == "00A5B2C4E9254172BE08387115D195FA00", ]
@@ -90,7 +90,7 @@ leaflet(points[points$traffic_den >= 4, ]) %>% addTiles() %>%
 # 
 library(clue)
 setwd("/san-data/usecase/magnet_g/misc/PCA_DATA_VIS/Yiming/Accuracy/")
-temp_all = fread("Timed_big_data.csv") %>%
+all_data = fread("Timed_big_data.csv") %>%
   filter(latitude > -99999 & longitude > -9999) %>%
   dplyr::select(
     trip_number,
@@ -110,21 +110,21 @@ temp_all = fread("Timed_big_data.csv") %>%
 
 one_trip_acc <- function(trip_number) {
   
-  temp_data = temp_all[temp_all$trip_number == trip_number, ] %>% 
+  temp_data = all_data[all_data$trip_number == trip_number, ] %>% 
     dplyr::select(longitude, latitude, trip_number, speed, stop_ind) %>% 
     transmute(longitude = round(.$longitude, 4), latitude = round(.$latitude, 4), trip_number = trip_number, 
               speed = speed, stop_ind = stop_ind) %>% distinct(longitude, latitude) 
   # add traffic density
-  temp_data = left_join(temp_data, left_join(temp_data, temp_all %>% 
+  temp_data = left_join(temp_data, left_join(temp_data, all_data %>% 
                                                group_by(longitude, latitude) %>%
                                                dplyr::summarise(traffic_den = n()), by = c("longitude" = "longitude", "latitude" = "latitude")), 
                         by = c("longitude" = "longitude", "latitude" = "latitude"))
   # add average speed
-  temp_data = left_join(temp_data, temp_all[temp_all$longitude %in% temp_data$longitude & temp_all$latitude %in% temp_data$latitude, ] %>% 
+  temp_data = left_join(temp_data, all_data[all_data$longitude %in% temp_data$longitude & all_data$latitude %in% temp_data$latitude, ] %>% 
                           group_by(longitude, latitude) %>% dplyr::summarise(avg_speed = mean(speed[speed != 0])),
                         by = c("longitude" = "longitude", "latitude" = "latitude"))
   # add quantile speed
-  temp_data = left_join(temp_data, temp_all[temp_all$longitude %in% temp_data$longitude & temp_all$latitude %in% temp_data$latitude, ] %>% 
+  temp_data = left_join(temp_data, all_data[all_data$longitude %in% temp_data$longitude & all_data$latitude %in% temp_data$latitude, ] %>% 
                           group_by(longitude, latitude) %>% dplyr::summarise(quan_speed = quantile(speed, 0.5)),
                         by = c("longitude" = "longitude", "latitude" = "latitude"))
   # add predicted road type
@@ -204,28 +204,32 @@ ggplot(data.frame("Obs" = obs[which(obs > 500)],
 ################################### at a location level ##############################
 # actual_data contains 60 trips' information
 # could compare 3 vs 4 decimals
+actual_data = fread("DIS_trips.csv")
+actual_data$V1 <- NULL
+actual_data$trip_number = actual_data$trip_numbe
+actual_data$trip_numbe <- NULL
 
-temp_data = temp_all[temp_all$trip_number %in% actual_data$trip_number, ] %>% 
+temp_data = all_data[all_data$trip_number %in% actual_data$trip_number, ] %>% 
   dplyr::select(longitude, latitude, trip_number, speed, stop_ind) %>% 
   transmute(longitude = round(.$longitude, 4), latitude = round(.$latitude, 4), trip_number = trip_number, 
             speed = speed, stop_ind = stop_ind) %>% distinct(trip_number, longitude, latitude) 
 
 # add traffic density
-temp_data = left_join(temp_data, left_join(temp_data, temp_all %>% 
+temp_data = left_join(temp_data, left_join(temp_data, all_data %>% 
                                              group_by(longitude, latitude) %>%
                                              dplyr::summarise(traffic_den = n()), by = c("longitude" = "longitude", "latitude" = "latitude")), 
                       by = c("longitude" = "longitude", "latitude" = "latitude"))
 # add average speed
-temp_data = left_join(temp_data, temp_all[temp_all$longitude %in% temp_data$longitude & temp_all$latitude %in% temp_data$latitude, ] %>% 
+temp_data = left_join(temp_data, all_data[all_data$longitude %in% temp_data$longitude & all_data$latitude %in% temp_data$latitude, ] %>% 
                         group_by(longitude, latitude) %>% dplyr::summarise(avg_speed = mean(speed[speed != 0])),
                       by = c("longitude" = "longitude", "latitude" = "latitude"))
 # add quantile speed
-temp_data = left_join(temp_data, temp_all[temp_all$longitude %in% temp_data$longitude & temp_all$latitude %in% temp_data$latitude, ] %>% 
+temp_data = left_join(temp_data, all_data[all_data$longitude %in% temp_data$longitude & all_data$latitude %in% temp_data$latitude, ] %>% 
                         group_by(longitude, latitude) %>% dplyr::summarise(quan_speed = quantile(speed, 0.5)),
                       by = c("longitude" = "longitude", "latitude" = "latitude"))
 # add predicted road type
-temp_data$road_type = ifelse(cl_predict(kmeans, temp_data[, c(3, 4)]) == 1, "Business District", 
-                             ifelse(cl_predict(kmeans, temp_data[, c(3, 4)]) == 2, "Residential Road", "Freeway"))
+temp_data$road_type = ifelse(cl_predict(kmeans0, temp_data[, c(5, 6)]) == 1, "Residential Road", 
+                             ifelse(cl_predict(kmeans0, temp_data[, c(5, 6)]) == 2, "Freeway", "Business District"))
 
 # add speed limit 1
 temp_data$speed_lim1 = ifelse(temp_data$road_type == "Freeway", 70, ifelse(temp_data$road_type == "Business District", 45, 30))
@@ -236,19 +240,27 @@ temp_data$speed_lim2 = ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed 
                                      ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed * 0.5 <= (55 + 65) / 2, 55,
                                             ifelse(temp_data$speed_lim1 * 0.5 + temp_data$quan_speed * 0.5 <= (65 + 70) / 2, 65, 70))))
 
+temp_data$speed_lim3 = (temp_data %>% mutate(speed_lim_temp = c(rollapply(speed_lim2, width = 15, mean, fill = NA))) %>%
+                          mutate(speed_lim3 = ifelse(speed_lim_temp <= (20 + 35) / 2, 20,
+                                                     ifelse(speed_lim_temp <= (35 + 55) / 2, 35, 
+                                                            ifelse(speed_lim_temp <= (55 + 65) / 2, 55,
+                                                                   ifelse(speed_lim_temp <= (65 + 70) / 2, 65, 70))))))$speed_lim3
+temp_data$trip_number = temp_data$trip_number.x
+temp_data$trip_number.x <- temp_data$trip_number.y <- NULL
+
 # add actual speed information
 temp_data = left_join(temp_data, actual_data[actual_data$longitude %in% temp_data$longitude & actual_data$latitude %in% temp_data$latitude, c("longitude", "latitude", "speed_cat")], 
                       by = c("longitude" = "longitude", "latitude" = "latitude"))
 
 # add comparison
-temp_data$comp = (temp_data$speed_cat == 1 & temp_data$speed_lim2 > 80) |
-  (temp_data$speed_cat == 2 & temp_data$speed_lim2 >= 60 & temp_data$speed_lim2 <= 80) |
-  (temp_data$speed_cat == 3 & temp_data$speed_lim2 >= 50 & temp_data$speed_lim2 <= 65) |
-  (temp_data$speed_cat == 4 & temp_data$speed_lim2 >= 35 & temp_data$speed_lim2 <= 55) |
-  (temp_data$speed_cat == 5 & temp_data$speed_lim2 >= 25 & temp_data$speed_lim2 <= 40) |
-  (temp_data$speed_cat == 6 & temp_data$speed_lim2 >= 15 & temp_data$speed_lim2 <= 30) |
-  (temp_data$speed_cat == 7 & temp_data$speed_lim2 >= 5 & temp_data$speed_lim2 <= 20) |
-  (temp_data$speed_cat == 8 & temp_data$speed_lim2 <= 6)
+temp_data$comp = (temp_data$speed_cat == 1 & temp_data$speed_lim3 > 80) |
+  (temp_data$speed_cat == 2 & temp_data$speed_lim3 >= 60 & temp_data$speed_lim3 <= 80) |
+  (temp_data$speed_cat == 3 & temp_data$speed_lim3 >= 50 & temp_data$speed_lim3 <= 65) |
+  (temp_data$speed_cat == 4 & temp_data$speed_lim3 >= 35 & temp_data$speed_lim3 <= 55) |
+  (temp_data$speed_cat == 5 & temp_data$speed_lim3 >= 25 & temp_data$speed_lim3 <= 40) |
+  (temp_data$speed_cat == 6 & temp_data$speed_lim3 >= 15 & temp_data$speed_lim3 <= 30) |
+  (temp_data$speed_cat == 7 & temp_data$speed_lim3 >= 5 & temp_data$speed_lim3 <= 20) |
+  (temp_data$speed_cat == 8 & temp_data$speed_lim3 <= 6)
 
 acc_df = na.omit(temp_data %>% 
                    group_by(traffic_den) %>% dplyr::summarise(acc = mean(na.omit(comp)), n = n())) %>%
@@ -266,25 +278,25 @@ ggplot(acc_df[acc_df$acc != 0, ], aes(x = traffic_den, y = acc)) + geom_point() 
 actual_data_3_decimals = actual_data %>% mutate(longitude = round(.$longitude, 3), latitude = round(.$latitude, 3))
 
 
-temp_data = temp_all[temp_all$trip_number %in% unique(actual_data_3_decimals$trip_number), ] %>% 
+temp_data = all_data[all_data$trip_number %in% unique(actual_data_3_decimals$trip_number), ] %>% 
   dplyr::select(longitude, latitude, trip_number, speed, stop_ind) %>% 
   transmute(longitude = round(.$longitude, 3), latitude = round(.$latitude, 3), trip_number = trip_number, 
             speed = speed, stop_ind = stop_ind) %>% distinct(trip_number, longitude, latitude) 
 
 # add traffic density
-temp_data = left_join(temp_data, left_join(temp_data, temp_all %>% 
+temp_data = left_join(temp_data, left_join(temp_data, all_data %>% 
                                              mutate(longitude = round(.$longitude, 3), latitude = round(.$latitude, 3)) %>% 
                                              group_by(longitude, latitude) %>%
                                              dplyr::summarise(traffic_den = n()), by = c("longitude" = "longitude", "latitude" = "latitude")), 
                       by = c("longitude" = "longitude", "latitude" = "latitude"))
 
 # add average speed
-temp_data = left_join(temp_data, temp_all[temp_all$longitude %in% temp_data$longitude & temp_all$latitude %in% temp_data$latitude, ] %>% 
+temp_data = left_join(temp_data, all_data[all_data$longitude %in% temp_data$longitude & all_data$latitude %in% temp_data$latitude, ] %>% 
                         mutate(longitude = round(.$longitude, 3), latitude = round(.$latitude, 3)) %>% 
                         group_by(longitude, latitude) %>% dplyr::summarise(avg_speed = mean(na.omit(speed[speed != 0]))),
                       by = c("longitude" = "longitude", "latitude" = "latitude"))
 # add quantile speed
-temp_data = left_join(temp_data, temp_all[temp_all$longitude %in% temp_data$longitude & temp_all$latitude %in% temp_data$latitude, ] %>% 
+temp_data = left_join(temp_data, all_data[all_data$longitude %in% temp_data$longitude & all_data$latitude %in% temp_data$latitude, ] %>% 
                         mutate(longitude = round(.$longitude, 3), latitude = round(.$latitude, 3)) %>% 
                         group_by(longitude, latitude) %>% dplyr::summarise(quan_speed = quantile(speed, 0.5)),
                       by = c("longitude" = "longitude", "latitude" = "latitude"))
