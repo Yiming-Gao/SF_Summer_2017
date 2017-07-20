@@ -86,7 +86,7 @@ leaflet(points[points$traffic_den >= 4, ]) %>% addTiles() %>%
 # This plot is very similar to actual speed limit plot
 
 
-############################# Validate with DIS Contextual Data ##############################
+############################### Validate with DIS Contextual Data ##############################
 # 
 library(clue)
 setwd("/san-data/usecase/magnet_g/misc/PCA_DATA_VIS/Yiming/Accuracy/")
