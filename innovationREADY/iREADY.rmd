@@ -18,7 +18,7 @@ output:
 
 
 + Testing and Evaluating the accuracies of our prior and newly developed algorithms utilizing various techniques like
-    a) External Resources (Google Maps, ITO Maps, Columbus Smart City Map, DIS Data etc.)
+    a) External Resources (Google Maps, ITO Maps, Columbus Smart City Map, DIS Data, etc.)
     b) Visualizations
     c) Machine Learning 
 
