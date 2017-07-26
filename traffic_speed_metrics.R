@@ -16,12 +16,6 @@ library(ggmap)
 library(ggthemes)
 library(caret)
 
-# new predictors
-# estimated traffic density relative to all roads
-# estimated traffic density relative to the roads average traffic density
-# estimated average speed
-# estimated speed limit
-
 latitude_min = 39.9524 # 39.80000
 latitude_max = 40.1190
 longitude_min = -83.1432
