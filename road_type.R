@@ -1,7 +1,3 @@
-### With_mutate <- function() {
-library(opencage)
-library("RDSTK") # coordinates2politics() function
-
 # Classify road type ONLY based on average speed
 points$turning = points$road_type = character(nrow(points))
 
