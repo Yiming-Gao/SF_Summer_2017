@@ -8,3 +8,5 @@ Jun 29, 2017
 Travelled to corporate.
 
 July 25th, Meeting with DS team
+
+July 26 & 27th Slides Review & Dry Run
