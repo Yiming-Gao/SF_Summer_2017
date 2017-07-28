@@ -6,3 +6,5 @@ Explored t-SNE, tried to import python module
 
 Jun 29, 2017
 Travelled to corporate.
+
+July 25th, Meeting with DS team
