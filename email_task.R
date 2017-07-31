@@ -1,4 +1,4 @@
-setwd("/san-data/usecase/magnet_g/misc/PCA_DATA_VIS")
+setwd("/san-data/usecase/magnet_g/misc/PCA_DATA_VIS")##
 all_data = fread("Timed_big_data.csv") %>%
   filter(latitude > -99999 & longitude > -9999) %>%
   dplyr::select(
