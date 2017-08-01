@@ -32,7 +32,7 @@ Principal component analysis(PCA) is a statistical procedure that uses an orthog
 
 + K-means clustering follows a simple and easy way to classify a given data set through a **certain number of clusters** (assume k clusters), which helps us to find the potential categories of road type, turning algorithm etc.
 
-+ Hierarchical clustering is a method of cluster analysis which seeks to build a **hierarchy** of clusters. We assigned each observation to its own cluster. Then, computed the similarity (i.e. the distance between two lat-long coordinates) between each of the clusters and joined the two most similar clusters. Hierarchical clustering was implemented to combine several observations near one intersection into one group. ...
++ Hierarchical clustering is a method of cluster analysis which seeks to build a **hierarchy** of clusters. We assigned each observation to its own cluster. Then, computed the similarity (i.e. the distance between two lat-long coordinates) between each of the clusters and joined the two most similar clusters. Hierarchical clustering was implemented to combine several observations near one intersection into one group. ..
 
 
 > T-distributed Stochastic Neighbor Embedding
