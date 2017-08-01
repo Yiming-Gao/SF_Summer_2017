@@ -51,7 +51,7 @@ grid()
 
 
 
-########### Coordinates of variables on the principal components
+########### Coordinates of variables on the principal components ####
 # Helper function:
 # Correlation between variables and principal components
 var_cor_func <- function(var.loadings, comp.sdev) {
