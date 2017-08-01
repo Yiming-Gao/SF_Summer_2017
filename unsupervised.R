@@ -117,7 +117,7 @@ temp2$over_speed = ifelse(temp2$percentage <= quantile(all_distr[all_distr$perce
 
 
 
-# Classification by first 11 PCs
+# Classification by first 11 PCs #
 # datas3 contains different trip numbers as well as their average PCA scores and corresponding response 0/1 based on our previous classification
 datas3 = (data.frame(trip_number = na.omit(new_datas2)$trip_number, prin_comp$x[, 1:11])) %>% 
   group_by(trip_number) %>% mutate(PC1 = mean(PC1), PC2 = mean(PC2), PC3 = mean(PC3), PC4 = mean(PC4),
