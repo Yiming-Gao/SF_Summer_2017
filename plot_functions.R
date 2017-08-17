@@ -1,5 +1,5 @@
 
-################################## Some plot functions #############################
+################################## Some plot functions ############################
 
 # a function that plots speed vs avg_speed in each trip
 # x-axis labels
