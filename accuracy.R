@@ -18,7 +18,7 @@ leaflet(plot_data) %>% addTiles() %>%
   addLegend("bottomright", pal = factpal, values = sort(unique(plot_data$speed_lim2)), title = "Speed Limit", opacity = 1)
 
 
-##################################### sample size  ###########################
+############################# sample size  ###########################
 # set some intolerance
 accuracy = function(actual, predicted) {
   (predicted <= actual + 5) & (predicted >=  actual - 5)
