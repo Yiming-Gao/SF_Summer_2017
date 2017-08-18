@@ -199,7 +199,7 @@ ggplot(data.frame("Obs" = obs[which(obs > 500)],
 
 
 
-################################### at a location level ##############################
+################################### at a location level #############################
 # actual_data contains 60 trips' information
 # could compare 3 vs 4 decimals
 actual_data = fread("DIS_trips.csv")
