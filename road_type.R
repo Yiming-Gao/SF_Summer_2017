@@ -1,4 +1,4 @@
-# Classify road type ONLY based on average speed
+### Classify road type ONLY based on average speed
 points$turning = points$road_type = character(nrow(points))
 
 points[which(points$avg_speed >= 0 & points$avg_speed <= 30), ]$road_type = "Residential Road"
